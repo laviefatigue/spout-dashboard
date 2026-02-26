@@ -551,69 +551,63 @@ export default function ReportPage() {
       <CampaignPerformanceTable campaigns={report.campaigns} />
 
       {/* What's Working Summary */}
-      {report.copyAnalysis && (
+      {report.copyAnalysis?.subjects?.analysis && (
         <div className="rounded-lg border bg-card shadow-sm overflow-hidden">
           <div className="flex flex-col space-y-1.5 p-6 bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-950/20 dark:to-indigo-950/20 border-b">
             <h2 className="flex items-center gap-3 text-xl font-bold">
               <div className="w-8 h-8 bg-gradient-to-r from-blue-600 to-indigo-600 rounded-lg flex items-center justify-center">
                 <CheckCircle className="h-5 w-5 text-white" />
               </div>
-              What&apos;s Working
+              Copy Analysis
             </h2>
             <p className="text-muted-foreground">
-              Quick insights from {report.copyAnalysis.summary.totalCampaignsAnalyzed} campaigns
+              Insights from {report.copyAnalysis.summary.totalCampaignsAnalyzed} campaigns
             </p>
           </div>
           <div className="p-6 space-y-6">
-            {/* Success Summary */}
-            <div className="prose prose-sm dark:prose-invert max-w-none">
-              <p className="text-foreground leading-relaxed">
-                <strong className="text-blue-600">The &quot;free unit&quot; offer is driving results.</strong>{' '}
-                Campaigns offering a free water generator unit are generating {report.heroMetrics.avgResponseRate}% average response rates
-                across {report.heroMetrics.totalCampaigns} industry verticals. The straightforward value proposition
-                &mdash; &quot;Want a unit?&quot; &mdash; removes friction by leading with a tangible benefit rather than a sales pitch.
-              </p>
-            </div>
-
-            {/* Key Success Factors */}
+            {/* Data-driven insights */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div className="bg-blue-50 dark:bg-blue-950/20 p-4 rounded-xl border border-blue-500/20">
                 <div className="flex items-center gap-2 mb-2">
                   <MessageSquare className="h-4 w-4 text-blue-600" />
-                  <h4 className="font-semibold text-blue-700 dark:text-blue-400 text-sm">Subject Line</h4>
+                  <h4 className="font-semibold text-blue-700 dark:text-blue-400 text-sm">Subject Lines</h4>
                 </div>
                 <p className="text-sm text-blue-600 dark:text-blue-500">
-                  Simple &amp; direct &mdash; &quot;Water from Air&quot; creates curiosity without being clickbait
+                  {report.copyAnalysis.subjects.analysis.keyInsight}
                 </p>
               </div>
-              <div className="bg-blue-50 dark:bg-blue-950/20 p-4 rounded-xl border border-blue-500/20">
-                <div className="flex items-center gap-2 mb-2">
-                  <Target className="h-4 w-4 text-blue-600" />
-                  <h4 className="font-semibold text-blue-700 dark:text-blue-400 text-sm">Opening Hook</h4>
+              {report.copyAnalysis.body?.analysis && (
+                <div className="bg-blue-50 dark:bg-blue-950/20 p-4 rounded-xl border border-blue-500/20">
+                  <div className="flex items-center gap-2 mb-2">
+                    <Target className="h-4 w-4 text-blue-600" />
+                    <h4 className="font-semibold text-blue-700 dark:text-blue-400 text-sm">Opening Hooks</h4>
+                  </div>
+                  <p className="text-sm text-blue-600 dark:text-blue-500">
+                    {report.copyAnalysis.body.analysis.contrast}
+                  </p>
                 </div>
-                <p className="text-sm text-blue-600 dark:text-blue-500">
-                  Industry-specific pain points (water costs, sustainability goals) resonate with decision makers
-                </p>
-              </div>
-              <div className="bg-blue-50 dark:bg-blue-950/20 p-4 rounded-xl border border-blue-500/20">
-                <div className="flex items-center gap-2 mb-2">
-                  <Mail className="h-4 w-4 text-blue-600" />
-                  <h4 className="font-semibold text-blue-700 dark:text-blue-400 text-sm">Call-to-Action</h4>
+              )}
+              {report.copyAnalysis.cta?.analysis && (
+                <div className="bg-blue-50 dark:bg-blue-950/20 p-4 rounded-xl border border-blue-500/20">
+                  <div className="flex items-center gap-2 mb-2">
+                    <Mail className="h-4 w-4 text-blue-600" />
+                    <h4 className="font-semibold text-blue-700 dark:text-blue-400 text-sm">CTAs</h4>
+                  </div>
+                  <p className="text-sm text-blue-600 dark:text-blue-500">
+                    {report.copyAnalysis.cta.analysis.commitmentAnalysis}
+                  </p>
                 </div>
-                <p className="text-sm text-blue-600 dark:text-blue-500">
-                  Free offer CTA eliminates risk &mdash; &quot;Want a unit?&quot; is low-commitment and high-value
-                </p>
-              </div>
+              )}
             </div>
 
             {/* Performance Highlight */}
             <div className="bg-gradient-to-r from-blue-600 to-indigo-600 p-5 rounded-xl text-white">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-white/80 text-sm mb-1">Top Performing Verticals</p>
+                  <p className="text-white/80 text-sm mb-1">Performance Summary</p>
                   <p className="font-semibold">
-                    Solar installers and water suppliers showing highest engagement &mdash; these audiences have immediate,
-                    practical use cases for atmospheric water generation.
+                    {report.heroMetrics.leadsContacted.toLocaleString()} leads contacted across {report.heroMetrics.totalCampaigns} campaigns
+                    with {report.heroMetrics.avgResponseRate}% average response rate.
                   </p>
                 </div>
                 <div className="text-right">

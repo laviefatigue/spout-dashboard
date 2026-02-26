@@ -2,14 +2,14 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import Image from 'next/image';
-import { FileText } from 'lucide-react';
+import { FileText, Brain } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { useAuthStore } from '@/lib/stores';
 
 const navigation = [
   { name: 'Report', href: '/report', icon: FileText },
+  { name: 'Analytics', href: '/analytics', icon: Brain },
 ];
 
 export function Sidebar() {
@@ -29,8 +29,12 @@ export function Sidebar() {
     <div className="flex h-screen w-64 flex-col border-r bg-sidebar">
       {/* Logo */}
       <div className="flex h-16 items-center gap-2 border-b px-6">
-        <Image src="/spout-logo.png" alt="Spout" width={32} height={32} />
-        <span className="text-lg font-semibold">Spout</span>
+        <div className="w-8 h-8 bg-gradient-to-r from-violet-600 to-indigo-600 rounded-lg flex items-center justify-center">
+          <Brain className="h-4 w-4 text-white" />
+        </div>
+        <span className="text-lg font-semibold">
+          {user?.workspace?.name || user?.team?.name || 'Dashboard'}
+        </span>
       </div>
 
       {/* Navigation */}

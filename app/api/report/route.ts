@@ -769,8 +769,8 @@ export async function GET(request: Request) {
     const url = new URL(request.url);
     const workspaceId = url.searchParams.get('workspace_id');
 
-    // Switch workspace if specified, otherwise default to Spout (13)
-    const targetWorkspaceId = workspaceId ? parseInt(workspaceId) : 13; // Default to Spout
+    // Switch workspace if specified, otherwise default to Selery (22)
+    const targetWorkspaceId = workspaceId ? parseInt(workspaceId) : 22; // Default to Selery
     try {
       await postApi<{ data: { id: number; name: string } }>('/api/workspaces/switch-workspace', {
         team_id: targetWorkspaceId

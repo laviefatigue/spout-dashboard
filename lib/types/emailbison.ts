@@ -397,3 +397,62 @@ export interface PerformanceReport {
   };
   insights: ReportInsight[];
 }
+
+// Analytics Types
+export type ReplySentiment = 'positive' | 'negative' | 'neutral';
+export type ReplyIntent = 'interested' | 'not-interested' | 'needs-info' | 'referral' | 'out-of-office' | 'unsubscribe';
+export type SeniorityLevel = 'C-Suite' | 'VP' | 'Director' | 'Manager' | 'Individual Contributor' | 'Unknown';
+
+export interface AnalyzedReply {
+  replyId: number;
+  leadId: number | null;
+  email: string;
+  name: string;
+  company: string;
+  title: string;
+  seniority: SeniorityLevel;
+  industry: string;
+  campaignId: number;
+  campaignName: string;
+  subject: string;
+  replyText: string;
+  replyDate: string;
+  isInterested: boolean;
+  isAutomated: boolean;
+  // AI analysis
+  sentiment: ReplySentiment;
+  intent: ReplyIntent;
+  themes: string[];
+  buyingSignals: string[];
+  objections: string[];
+  summary: string;
+}
+
+export interface DemographicDistribution {
+  label: string;
+  count: number;
+  percentage: number;
+  interestedCount: number;
+}
+
+export interface AnalyticsReport {
+  workspaceName: string;
+  totalReplies: number;
+  totalAnalyzed: number;
+  // Sentiment breakdown
+  sentimentBreakdown: Record<ReplySentiment, number>;
+  intentBreakdown: Record<ReplyIntent, number>;
+  // Demographics
+  industryDistribution: DemographicDistribution[];
+  seniorityDistribution: DemographicDistribution[];
+  topCompanies: DemographicDistribution[];
+  // Themes
+  topThemes: Array<{ theme: string; count: number }>;
+  topObjections: Array<{ objection: string; count: number }>;
+  topBuyingSignals: Array<{ signal: string; count: number }>;
+  // All analyzed replies
+  replies: AnalyzedReply[];
+  // Filters
+  campaigns: Array<{ id: number; name: string }>;
+  industries: string[];
+}
