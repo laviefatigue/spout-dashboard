@@ -632,10 +632,15 @@ function PipelineCompanies({
         {companies.map((c) => {
           const companyReplies = replies.filter(r => r.company === c.label && r.isInterested);
           const latestReply = companyReplies[0];
+          const domain = latestReply?.email?.split('@')[1];
           return (
             <div key={c.label} className="p-3 rounded-lg bg-selery-gold/5 dark:bg-selery-gold/10 border border-selery-gold/20 dark:border-selery-gold/20">
               <div className="flex items-center justify-between mb-1">
-                <span className="font-medium text-sm truncate max-w-[180px]" title={c.label}>{c.label}</span>
+                {domain ? (
+                  <a href={`https://${domain}`} target="_blank" rel="noopener noreferrer" className="font-medium text-sm truncate max-w-[180px] text-selery-cyan hover:underline" title={c.label}>{c.label}</a>
+                ) : (
+                  <span className="font-medium text-sm truncate max-w-[180px]" title={c.label}>{c.label}</span>
+                )}
                 <span className="text-xs bg-selery-gold/10 dark:bg-selery-gold/20 text-selery-gold dark:text-selery-gold px-1.5 py-0.5 rounded font-medium">
                   {c.interestedCount} interested
                 </span>
