@@ -4,6 +4,9 @@
 @custom-variant dark (&:is(.dark *));
 
 @theme inline {
+  --color-selery-navy: #1C2655;
+  --color-selery-cyan: #28BFFC;
+  --color-selery-gold: #F9B416;
   --color-background: var(--background);
   --color-foreground: var(--foreground);
   --font-sans: var(--font-geist-sans);
@@ -93,7 +96,7 @@
   /* Charts - Campaign Metrics */
   --chart-1: #3b82f6; /* Sent - Blue */
   --chart-2: #22c55e; /* Opens - Green */
-  --chart-3: #8b5cf6; /* Replies - Purple */
+  --chart-3: #28BFFC; /* Replies - Selery Cyan */
   --chart-4: #ef4444; /* Bounced - Red */
   --chart-5: #f59e0b; /* Interested - Amber */
 
@@ -131,7 +134,7 @@
   --ring: #60a5fa;
   --chart-1: #60a5fa;
   --chart-2: #4ade80;
-  --chart-3: #a78bfa;
+  --chart-3: #28BFFC;
   --chart-4: #f87171;
   --chart-5: #fbbf24;
   --sidebar: #171717;

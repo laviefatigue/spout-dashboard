@@ -70,7 +70,7 @@ function IntentBadge({ intent }: { intent: string }) {
     'interested': 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950/30 dark:text-emerald-400',
     'not-interested': 'bg-red-100 text-red-700 dark:bg-red-950/30 dark:text-red-400',
     'needs-info': 'bg-blue-100 text-blue-700 dark:bg-blue-950/30 dark:text-blue-400',
-    'referral': 'bg-purple-100 text-purple-700 dark:bg-purple-950/30 dark:text-purple-400',
+    'referral': 'bg-selery-navy/10 text-selery-navy dark:bg-selery-navy/20 dark:text-selery-cyan',
     'out-of-office': 'bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400',
     'unsubscribe': 'bg-orange-100 text-orange-700 dark:bg-orange-950/30 dark:text-orange-400',
   };
@@ -83,7 +83,7 @@ function IntentBadge({ intent }: { intent: string }) {
 
 function HorizontalBarChart({
   data,
-  colorClass = 'bg-indigo-600',
+  colorClass = 'bg-selery-cyan',
   showInterested = false,
 }: {
   data: DemographicDistribution[];
@@ -156,7 +156,7 @@ function ConversionFunnel({ funnel }: { funnel: FastAnalytics['funnel'] }) {
   const steps = [
     { label: 'Total Leads', value: funnel.totalLeads, color: 'from-slate-500 to-slate-600' },
     { label: 'Contacted', value: funnel.contacted, color: 'from-blue-500 to-blue-600' },
-    { label: 'Replied', value: funnel.replied, color: 'from-violet-500 to-violet-600' },
+    { label: 'Replied', value: funnel.replied, color: 'from-selery-cyan to-selery-cyan' },
     { label: 'Interested', value: funnel.interested, color: 'from-emerald-500 to-emerald-600' },
   ];
 
@@ -244,7 +244,7 @@ function CampaignComparison({ campaigns }: { campaigns: CampaignComparisonItem[]
 
   return (
     <div className="rounded-lg border bg-card shadow-sm overflow-hidden">
-      <div className="p-4 bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-950/20 dark:to-indigo-950/20 border-b">
+      <div className="p-4 bg-gradient-to-r from-blue-50 to-selery-cyan/5 dark:from-blue-950/20 dark:to-selery-cyan/10 border-b">
         <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-2">
           <BarChart3 className="h-4 w-4" />
           Campaign Comparison
@@ -305,7 +305,7 @@ function CampaignComparison({ campaigns }: { campaigns: CampaignComparisonItem[]
                     <div className="flex items-center gap-2 justify-end">
                       <div className="w-16 h-1.5 bg-muted rounded-full overflow-hidden">
                         <div
-                          className="h-full bg-indigo-500 rounded-full"
+                          className="h-full bg-selery-cyan rounded-full"
                           style={{ width: `${Math.min(c.completionPct, 100)}%` }}
                         />
                       </div>
@@ -339,16 +339,16 @@ function CampaignComparison({ campaigns }: { campaigns: CampaignComparisonItem[]
 
                         {/* Email Sequence */}
                         <div className="bg-card rounded-lg border overflow-hidden">
-                          <div className="bg-gradient-to-r from-indigo-50 to-purple-50 dark:from-indigo-950/20 dark:to-purple-950/20 px-4 py-3 border-b">
+                          <div className="bg-gradient-to-r from-selery-cyan/5 to-selery-navy/5 dark:from-selery-cyan/10 dark:to-selery-navy/10 px-4 py-3 border-b">
                             <div className="flex items-center gap-2">
-                              <Mail className="h-4 w-4 text-indigo-600" />
-                              <p className="text-sm font-semibold text-indigo-700 dark:text-indigo-400">Email Sequence</p>
+                              <Mail className="h-4 w-4 text-selery-cyan" />
+                              <p className="text-sm font-semibold text-selery-navy dark:text-selery-cyan">Email Sequence</p>
                             </div>
                           </div>
                           <div className="p-4">
                             {seqLoading === c.id ? (
                               <div className="flex items-center justify-center py-8">
-                                <Loader2 className="h-6 w-6 animate-spin text-indigo-600" />
+                                <Loader2 className="h-6 w-6 animate-spin text-selery-cyan" />
                                 <span className="ml-2 text-sm text-muted-foreground">Loading...</span>
                               </div>
                             ) : sequenceData[c.id] && sequenceData[c.id].length > 0 ? (
@@ -357,12 +357,12 @@ function CampaignComparison({ campaigns }: { campaigns: CampaignComparisonItem[]
                                   <div key={step.id || idx} className="border rounded-lg overflow-hidden">
                                     <div className="bg-muted/50 px-4 py-2 flex items-center justify-between">
                                       <div className="flex items-center gap-2">
-                                        <span className="inline-flex items-center justify-center w-6 h-6 rounded-full bg-indigo-100 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-400 text-xs font-bold">
+                                        <span className="inline-flex items-center justify-center w-6 h-6 rounded-full bg-selery-cyan/10 dark:bg-selery-cyan/20 text-selery-navy dark:text-selery-cyan text-xs font-bold">
                                           {idx + 1}
                                         </span>
                                         <span className="text-sm font-medium">Step {idx + 1}</span>
                                         {step.is_variant && (
-                                          <span className="text-xs bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-400 px-2 py-0.5 rounded">
+                                          <span className="text-xs bg-selery-navy/10 dark:bg-selery-navy/20 text-selery-navy dark:text-selery-cyan px-2 py-0.5 rounded">
                                             Variant {step.variant_letter || ''}
                                           </span>
                                         )}
@@ -423,10 +423,10 @@ function CampaignComparison({ campaigns }: { campaigns: CampaignComparisonItem[]
                         </div>
 
                         {/* Performance Summary */}
-                        <div className="bg-gradient-to-r from-indigo-50 to-purple-50 dark:from-indigo-950/20 dark:to-purple-950/20 rounded-lg p-4 border border-indigo-500/10">
+                        <div className="bg-gradient-to-r from-selery-cyan/5 to-selery-navy/5 dark:from-selery-cyan/10 dark:to-selery-navy/10 rounded-lg p-4 border border-selery-cyan/10">
                           <div className="flex items-center gap-2 mb-2">
-                            <Target className="h-4 w-4 text-indigo-600" />
-                            <p className="text-xs text-indigo-600 uppercase tracking-wider font-semibold">Performance Summary</p>
+                            <Target className="h-4 w-4 text-selery-cyan" />
+                            <p className="text-xs text-selery-cyan uppercase tracking-wider font-semibold">Performance Summary</p>
                           </div>
                           <p className="text-sm text-muted-foreground">
                             Reached <span className="font-semibold text-foreground">{c.leadsContacted.toLocaleString()}</span> leads
@@ -474,7 +474,7 @@ function SequenceStepAnalysis({ steps }: { steps: SequenceStepPerformance[] }) {
             </div>
             <div className="h-3 bg-muted rounded-full overflow-hidden flex">
               <div
-                className="h-full bg-indigo-500 rounded-l-full transition-all duration-500"
+                className="h-full bg-selery-cyan rounded-l-full transition-all duration-500"
                 style={{ width: `${(step.replyRate / maxReplyRate) * 100}%` }}
                 title={`${step.replyRate}% reply rate`}
               />
@@ -490,7 +490,7 @@ function SequenceStepAnalysis({ steps }: { steps: SequenceStepPerformance[] }) {
         ))}
       </div>
       <div className="flex items-center gap-4 mt-4 text-xs text-muted-foreground">
-        <div className="flex items-center gap-1"><div className="w-3 h-3 bg-indigo-500 rounded" /> Reply rate</div>
+        <div className="flex items-center gap-1"><div className="w-3 h-3 bg-selery-cyan rounded" /> Reply rate</div>
         <div className="flex items-center gap-1"><div className="w-3 h-3 bg-emerald-500 rounded" /> Interest rate</div>
       </div>
     </div>
@@ -538,7 +538,7 @@ function SenderPerformance({ data }: { data: SenderAnalytics }) {
                     <p className="text-xs text-muted-foreground">Bounce</p>
                   </div>
                   <div>
-                    <p className="text-lg font-bold text-indigo-600">{p.replied.toLocaleString()}</p>
+                    <p className="text-lg font-bold text-selery-cyan">{p.replied.toLocaleString()}</p>
                     <p className="text-xs text-muted-foreground">Replied</p>
                   </div>
                 </div>
@@ -585,7 +585,7 @@ function SenderPerformance({ data }: { data: SenderAnalytics }) {
             <div className="p-3 text-center border-t">
               <button
                 onClick={() => setShowAllDomains(!showAllDomains)}
-                className="text-xs text-indigo-600 hover:text-indigo-700 font-medium"
+                className="text-xs text-selery-cyan hover:text-selery-cyan/80 font-medium"
               >
                 {showAllDomains ? 'Show less' : `Show all ${activeDomains.length} domains`}
               </button>
@@ -691,10 +691,10 @@ function LeadDeepDive({
 
   return (
     <div className="rounded-lg border bg-card shadow-sm overflow-hidden">
-      <div className="p-4 bg-gradient-to-r from-violet-50 to-purple-50 dark:from-violet-950/20 dark:to-purple-950/20 border-b space-y-3">
+      <div className="p-4 bg-gradient-to-r from-selery-cyan/5 to-selery-navy/5 dark:from-selery-cyan/10 dark:to-selery-navy/10 border-b space-y-3">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="w-8 h-8 bg-gradient-to-r from-violet-600 to-purple-600 rounded-lg flex items-center justify-center">
+            <div className="w-8 h-8 bg-selery-navy rounded-lg flex items-center justify-center">
               <Users className="h-4 w-4 text-white" />
             </div>
             <h3 className="text-lg font-bold">
@@ -706,7 +706,7 @@ function LeadDeepDive({
             <button
               onClick={() => setShowFilters(!showFilters)}
               className={`flex items-center gap-1 px-3 py-1.5 text-xs font-medium rounded-lg border transition-colors ${
-                showFilters ? 'bg-violet-600 text-white border-violet-600' : 'bg-white dark:bg-gray-800 hover:bg-gray-100 dark:hover:bg-gray-700'
+                showFilters ? 'bg-selery-cyan text-white border-selery-cyan' : 'bg-white dark:bg-gray-800 hover:bg-gray-100 dark:hover:bg-gray-700'
               }`}
             >
               <Filter className="h-3 w-3" />
@@ -719,7 +719,7 @@ function LeadDeepDive({
                 placeholder="Search..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-48 h-9 pl-9 pr-3 text-sm rounded-lg border bg-background focus:outline-none focus:ring-2 focus:ring-violet-500/20"
+                className="w-48 h-9 pl-9 pr-3 text-sm rounded-lg border bg-background focus:outline-none focus:ring-2 focus:ring-selery-cyan/20"
               />
             </div>
           </div>
@@ -1138,7 +1138,7 @@ export default function AnalyticsPage() {
           <FileSpreadsheet className="h-4 w-4" /> Download CSV
         </button>
         <button onClick={handleExportPDF} disabled={exporting}
-          className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-lg bg-violet-600 hover:bg-violet-700 text-white transition-colors disabled:opacity-50">
+          className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-lg bg-selery-cyan hover:bg-selery-cyan/80 text-white transition-colors disabled:opacity-50">
           {exporting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
           {exporting ? 'Generating...' : 'Export PDF'}
         </button>
@@ -1153,7 +1153,7 @@ export default function AnalyticsPage() {
               onClick={() => setActiveCycle(null)}
               className={`px-4 py-2 text-sm font-medium rounded-lg border transition-colors whitespace-nowrap ${
                 activeCycle === null
-                  ? 'bg-violet-600 text-white border-violet-600'
+                  ? 'bg-selery-cyan text-white border-selery-cyan'
                   : 'bg-white dark:bg-gray-800 hover:bg-gray-100 dark:hover:bg-gray-700 border-border'
               }`}
             >
@@ -1165,7 +1165,7 @@ export default function AnalyticsPage() {
                 onClick={() => setActiveCycle(cycle)}
                 className={`px-4 py-2 text-sm font-medium rounded-lg border transition-colors whitespace-nowrap ${
                   activeCycle === cycle
-                    ? 'bg-violet-600 text-white border-violet-600'
+                    ? 'bg-selery-cyan text-white border-selery-cyan'
                     : 'bg-white dark:bg-gray-800 hover:bg-gray-100 dark:hover:bg-gray-700 border-border'
                 }`}
               >
@@ -1177,7 +1177,7 @@ export default function AnalyticsPage() {
 
         {/* ── PHASE 1: Hero Section ─────────────────────────────── */}
         {hero && (
-          <div className="bg-gradient-to-r from-violet-600 via-purple-600 to-indigo-700 text-white rounded-3xl p-8 shadow-xl">
+          <div className="bg-selery-navy text-white rounded-3xl p-8 shadow-xl">
             <div className="flex items-center gap-4 mb-6">
               <div className="w-10 h-10 bg-white/20 backdrop-blur-sm rounded-xl flex items-center justify-center">
                 <Brain className="h-5 w-5" />
@@ -1254,9 +1254,9 @@ export default function AnalyticsPage() {
           </div>
         ) : copyData?.subjects?.analysis ? (
           <div className="rounded-lg border bg-card shadow-sm overflow-hidden">
-            <div className="flex flex-col space-y-1.5 p-6 bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-950/20 dark:to-indigo-950/20 border-b">
+            <div className="flex flex-col space-y-1.5 p-6 bg-gradient-to-r from-selery-cyan/5 to-selery-navy/5 dark:from-selery-cyan/10 dark:to-selery-navy/10 border-b">
               <h2 className="flex items-center gap-3 text-xl font-bold">
-                <div className="w-8 h-8 bg-gradient-to-r from-blue-600 to-indigo-600 rounded-lg flex items-center justify-center">
+                <div className="w-8 h-8 bg-selery-navy rounded-lg flex items-center justify-center">
                   <CheckCircle className="h-5 w-5 text-white" />
                 </div>
                 Copy Analysis
@@ -1302,7 +1302,7 @@ export default function AnalyticsPage() {
 
               {/* Performance Highlight */}
               {filteredFastData && (
-                <div className="bg-gradient-to-r from-blue-600 to-indigo-600 p-5 rounded-xl text-white">
+                <div className="bg-selery-navy p-5 rounded-xl text-white">
                   <div className="flex items-center justify-between">
                     <div>
                       <p className="text-white/80 text-sm mb-1">Performance Summary</p>
@@ -1336,7 +1336,7 @@ export default function AnalyticsPage() {
             {/* Response Intelligence */}
             <div>
               <h2 className="text-2xl font-bold text-foreground mb-4 flex items-center gap-2">
-                <Brain className="h-6 w-6 text-violet-600" />
+                <Brain className="h-6 w-6 text-selery-cyan" />
                 Response Intelligence
               </h2>
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -1393,7 +1393,7 @@ export default function AnalyticsPage() {
             {/* Who's Responding */}
             <div>
               <h2 className="text-2xl font-bold text-foreground mb-4 flex items-center gap-2">
-                <BarChart3 className="h-6 w-6 text-indigo-600" />
+                <BarChart3 className="h-6 w-6 text-selery-cyan" />
                 Who&apos;s Responding
               </h2>
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -1401,13 +1401,13 @@ export default function AnalyticsPage() {
                   <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-4 flex items-center gap-2">
                     <Building2 className="h-4 w-4" /> Industry Distribution
                   </h3>
-                  <HorizontalBarChart data={filteredReport.industryDistribution} colorClass="bg-indigo-600" showInterested />
+                  <HorizontalBarChart data={filteredReport.industryDistribution} colorClass="bg-selery-cyan" showInterested />
                 </div>
                 <div className="rounded-lg border bg-card shadow-sm p-6">
                   <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-4 flex items-center gap-2">
                     <Briefcase className="h-4 w-4" /> Title Seniority
                   </h3>
-                  <HorizontalBarChart data={filteredReport.seniorityDistribution} colorClass="bg-purple-600" showInterested />
+                  <HorizontalBarChart data={filteredReport.seniorityDistribution} colorClass="bg-selery-navy" showInterested />
                 </div>
 
                 {/* Pipeline Companies (replaces Top Responding Companies) */}

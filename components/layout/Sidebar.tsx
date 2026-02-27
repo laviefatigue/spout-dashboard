@@ -28,7 +28,7 @@ export function Sidebar() {
     <div className="flex h-screen w-64 flex-col border-r bg-sidebar">
       {/* Logo */}
       <div className="flex h-16 items-center gap-2 border-b px-6">
-        <div className="w-8 h-8 bg-gradient-to-r from-violet-600 to-indigo-600 rounded-lg flex items-center justify-center">
+        <div className="w-8 h-8 bg-selery-navy rounded-lg flex items-center justify-center">
           <Brain className="h-4 w-4 text-white" />
         </div>
         <span className="text-lg font-semibold">

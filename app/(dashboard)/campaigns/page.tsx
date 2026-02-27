@@ -63,8 +63,8 @@ export default function CampaignsPage() {
         </div>
         <div className="rounded-lg border bg-card p-4">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-lg bg-indigo-500/10 flex items-center justify-center">
-              <Users className="h-5 w-5 text-indigo-500" />
+            <div className="w-10 h-10 rounded-lg bg-selery-cyan/10 flex items-center justify-center">
+              <Users className="h-5 w-5 text-selery-cyan" />
             </div>
             <div>
               <p className="text-2xl font-bold">{heroMetrics.leadsContacted.toLocaleString()}</p>
@@ -74,8 +74,8 @@ export default function CampaignsPage() {
         </div>
         <div className="rounded-lg border bg-card p-4">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-lg bg-purple-500/10 flex items-center justify-center">
-              <MessageSquare className="h-5 w-5 text-purple-500" />
+            <div className="w-10 h-10 rounded-lg bg-selery-navy/10 flex items-center justify-center">
+              <MessageSquare className="h-5 w-5 text-selery-navy" />
             </div>
             <div>
               <p className="text-2xl font-bold">{heroMetrics.emailsSent.toLocaleString()}</p>
