@@ -79,7 +79,7 @@ function classifySeniority(title: string | null): SeniorityLevel {
   if (!title) return 'Unknown';
   const t = title.toLowerCase();
   if (/\b(ceo|coo|cfo|cto|cmo|chief|co-founder|cofounder|founder|owner|president)\b/.test(t)) return 'C-Suite';
-  if (/\b(vp|vice president|svp|evp)\b/.test(t)) return 'VP';
+  if (/\b(vp|vice[\s-]president|svp|evp|avp)\b/.test(t)) return 'VP';
   if (/\b(director|head of)\b/.test(t)) return 'Director';
   if (/\b(manager|supervisor|lead|coordinator)\b/.test(t)) return 'Manager';
   if (/\b(specialist|analyst|associate|assistant|representative|intern)\b/.test(t)) return 'Individual Contributor';
@@ -238,7 +238,8 @@ Classify each reply below. For each, return:
 ### IMPORTANT:
 - The intent "interested" MUST ONLY be used for replies tagged [FLAGGED AS INTERESTED BY PLATFORM]. These have been manually verified as interested. For these, sentiment MUST be "positive" and intent MUST be "interested". Still provide accurate themes, buying_signals, and summary.
 - For ALL other replies (not flagged), NEVER use intent "interested". Use "needs-info" for engaged/positive replies, "not-interested" for rejections, etc.
-- Do NOT mark someone as "positive" just because they replied. Many replies are rejections.
+- Do NOT mark someone as "positive" sentiment just because they replied or asked a question. Positive sentiment MUST ONLY be used for replies tagged [FLAGGED AS INTERESTED BY PLATFORM]. For ALL other replies, use "neutral" or "negative" sentiment only.
+- Many replies are rejections — "no thank you", "not interested", "we handle it in-house" are all NEGATIVE.
 - If someone says they don't have inventory, don't sell physical products, are a licensing/IP company, or otherwise can't use fulfillment → that is NEGATIVE/NOT-INTERESTED.
 - "Call" or "connect" alone does NOT mean interested — look at full context.
 - Short rude replies like "Not interested" or "Remove me" are NEGATIVE.
@@ -527,14 +528,16 @@ export async function GET(request: Request) {
       if (reply.interested) {
         classification.sentiment = 'positive';
         classification.intent = 'interested';
-        if (!classification.buying_signals.length) {
-          classification.buying_signals = ['flagged interested in EmailBison'];
-        }
       }
 
       // REVERSE GUARD: "interested" intent reserved for EB-flagged leads only
       if (!reply.interested && classification.intent === 'interested') {
         classification.intent = 'needs-info';
+      }
+
+      // SENTIMENT GUARD: positive sentiment reserved for EB-flagged only
+      if (!reply.interested && classification.sentiment === 'positive') {
+        classification.sentiment = 'neutral';
       }
 
       const company = lead?.company || (() => {
@@ -553,6 +556,10 @@ export async function GET(request: Request) {
         industry: extractIndustryFromLead(lead || null, campaignName),
         campaignId: reply.campaign_id || 0,
         campaignName: campaignName.split(':').pop()?.trim() || campaignName,
+        cycleNumber: (() => {
+          const m = campaignName.match(/^Cycle\s+(\d+)/i);
+          return m ? parseInt(m[1], 10) : null;
+        })(),
         subject: reply.subject.replace(/^Re:\s*/i, '').replace(/^\[External\]\s*/i, '').trim(),
         replyText: cleanReplyText(reply.text_body, reply.html_body),
         replyDate: reply.date_received,

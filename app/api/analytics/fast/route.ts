@@ -111,6 +111,7 @@ export async function GET() {
         campaignCount: data.campaigns,
       }))
       .filter(step =>
+        step.stepNumber <= 4 &&
         step.campaignCount >= Math.max(Math.floor(totalCampaignCount * 0.3), 1) &&
         step.totalSent >= 100
       );
@@ -143,6 +144,14 @@ export async function GET() {
       },
       campaignComparison,
       sequenceStepPerformance,
+      availableCycles: [...new Set(
+        activeCampaigns
+          .map(c => {
+            const match = c.name.match(/^Cycle\s+(\d+)/i);
+            return match ? parseInt(match[1], 10) : null;
+          })
+          .filter((n): n is number => n !== null)
+      )].sort((a, b) => a - b),
     };
 
     return NextResponse.json({ data: report }, {

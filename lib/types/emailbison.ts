@@ -414,6 +414,7 @@ export interface AnalyzedReply {
   industry: string;
   campaignId: number;
   campaignName: string;
+  cycleNumber: number | null;
   subject: string;
   replyText: string;
   replyDate: string;
@@ -509,6 +510,7 @@ export interface FastAnalytics {
   funnel: FunnelData;
   campaignComparison: CampaignComparisonItem[];
   sequenceStepPerformance: SequenceStepPerformance[];
+  availableCycles: number[];
 }
 
 // ── Sender Analytics Types ───────────────────────────────────────────

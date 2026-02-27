@@ -7,6 +7,7 @@ import type {
   AnalyticsReport,
   AnalyzedReply,
   ReplySentiment,
+  ReplyIntent,
   DemographicDistribution,
   FastAnalytics,
   SenderAnalytics,
@@ -705,7 +706,122 @@ export default function AnalyticsPage() {
   const [phase2Error, setPhase2Error] = useState<string | null>(null);
 
   const [exporting, setExporting] = useState(false);
+  const [activeCycle, setActiveCycle] = useState<number | null>(null);
   const contentRef = useRef<HTMLDivElement>(null);
+
+  // Derive available cycles from fast data
+  const availableCycles = useMemo(() => {
+    return fastData?.availableCycles || [];
+  }, [fastData]);
+
+  // Parse cycle number from a campaign name
+  const parseCycle = useCallback((name: string): number | null => {
+    const match = name.match(/^Cycle\s+(\d+)/i);
+    return match ? parseInt(match[1], 10) : null;
+  }, []);
+
+  // Filter Phase 1 data by cycle
+  const filteredFastData = useMemo(() => {
+    if (!fastData || activeCycle === null) return fastData;
+    const filtered = fastData.campaignComparison.filter(c => parseCycle(c.name) === activeCycle);
+    const emailsSent = filtered.reduce((s, c) => s + c.emailsSent, 0);
+    const leadsContacted = filtered.reduce((s, c) => s + c.leadsContacted, 0);
+    const totalReplies = filtered.reduce((s, c) => s + c.uniqueReplies, 0);
+    const totalInterested = filtered.reduce((s, c) => s + c.interested, 0);
+    return {
+      ...fastData,
+      heroMetrics: {
+        ...fastData.heroMetrics,
+        activeCampaigns: filtered.length,
+        emailsSent,
+        leadsContacted,
+        totalReplies,
+        totalInterested,
+        avgReplyRate: leadsContacted > 0 ? parseFloat(((totalReplies / leadsContacted) * 100).toFixed(2)) : 0,
+        avgInterestRate: leadsContacted > 0 ? parseFloat(((totalInterested / leadsContacted) * 100).toFixed(2)) : 0,
+        avgBounceRate: emailsSent > 0
+          ? parseFloat(((filtered.reduce((s, c) => s + Math.round(c.bounceRate * c.emailsSent / 100), 0) / emailsSent) * 100).toFixed(2))
+          : 0,
+      },
+      funnel: {
+        totalLeads: leadsContacted,
+        contacted: leadsContacted,
+        replied: totalReplies,
+        interested: totalInterested,
+      },
+      campaignComparison: filtered,
+    } as FastAnalytics;
+  }, [fastData, activeCycle, parseCycle]);
+
+  // Filter Phase 2 data by cycle
+  const filteredReport = useMemo(() => {
+    if (!report || activeCycle === null) return report;
+    const filteredReplies = report.replies.filter(r => r.cycleNumber === activeCycle);
+    // Recompute sentiment/intent breakdown
+    const sentimentBreakdown: Record<ReplySentiment, number> = { positive: 0, negative: 0, neutral: 0 };
+    const intentBreakdown: Record<ReplyIntent, number> = {
+      'interested': 0, 'not-interested': 0, 'needs-info': 0,
+      'referral': 0, 'out-of-office': 0, 'unsubscribe': 0,
+    };
+    for (const r of filteredReplies) {
+      sentimentBreakdown[r.sentiment]++;
+      intentBreakdown[r.intent]++;
+    }
+    // Recompute themes, signals, objections
+    const themeCount = new Map<string, number>();
+    const objCount = new Map<string, number>();
+    const sigCount = new Map<string, number>();
+    for (const r of filteredReplies) {
+      for (const t of r.themes) themeCount.set(t, (themeCount.get(t) || 0) + 1);
+      for (const o of r.objections) objCount.set(o, (objCount.get(o) || 0) + 1);
+      for (const s of r.buyingSignals) sigCount.set(s, (sigCount.get(s) || 0) + 1);
+    }
+    // Recompute demographics
+    const buildDist = (items: string[], interestedReplies: AnalyzedReply[]): DemographicDistribution[] => {
+      const counts = new Map<string, number>();
+      for (const item of items) counts.set(item, (counts.get(item) || 0) + 1);
+      return Array.from(counts.entries())
+        .map(([label, count]) => ({
+          label,
+          count,
+          percentage: items.length > 0 ? parseFloat(((count / items.length) * 100).toFixed(1)) : 0,
+          interestedCount: interestedReplies.filter(r => r.company === label || r.industry === label || r.seniority === label).filter(r => r.isInterested).length,
+        }))
+        .sort((a, b) => b.count - a.count);
+    };
+    const industries = filteredReplies.map(r => r.industry);
+    const seniorities = filteredReplies.map(r => r.seniority);
+    const companies = filteredReplies.map(r => r.company);
+    // Pipeline companies from filtered replies
+    const pipeMap = new Map<string, number>();
+    for (const r of filteredReplies) {
+      if (r.isInterested) pipeMap.set(r.company, (pipeMap.get(r.company) || 0) + 1);
+    }
+    const pipelineCompanies: DemographicDistribution[] = Array.from(pipeMap.entries())
+      .map(([label, interestedCount]) => ({
+        label,
+        count: interestedCount,
+        percentage: filteredReplies.length > 0 ? parseFloat(((interestedCount / filteredReplies.length) * 100).toFixed(1)) : 0,
+        interestedCount,
+      }))
+      .sort((a, b) => b.interestedCount - a.interestedCount);
+
+    return {
+      ...report,
+      totalAnalyzed: filteredReplies.length,
+      sentimentBreakdown,
+      intentBreakdown,
+      industryDistribution: buildDist(industries, filteredReplies),
+      seniorityDistribution: buildDist(seniorities, filteredReplies),
+      topCompanies: buildDist(companies, filteredReplies).slice(0, 15),
+      pipelineCompanies,
+      topThemes: Array.from(themeCount.entries()).map(([theme, count]) => ({ theme, count })).sort((a, b) => b.count - a.count).slice(0, 10),
+      topObjections: Array.from(objCount.entries()).map(([objection, count]) => ({ objection, count })).sort((a, b) => b.count - a.count).slice(0, 10),
+      topBuyingSignals: Array.from(sigCount.entries()).map(([signal, count]) => ({ signal, count })).sort((a, b) => b.count - a.count).slice(0, 10),
+      replies: filteredReplies,
+      industries: [...new Set(industries)],
+    } as AnalyticsReport;
+  }, [report, activeCycle]);
 
   // Phase 1: Fast fetch
   useEffect(() => {
@@ -764,8 +880,9 @@ export default function AnalyticsPage() {
   }, [exporting, fastData]);
 
   const handleExportCSV = useCallback(() => {
-    if (!report) return;
-    const rows = report.replies
+    const data = filteredReport;
+    if (!data) return;
+    const rows = data.replies
       .filter((r) => !r.isAutomated || r.isInterested)
       .map((r) => ({
         Name: r.name, Email: r.email, Company: r.company, Title: r.title || '',
@@ -774,9 +891,10 @@ export default function AnalyticsPage() {
         'Buying Signals': r.buyingSignals.join('; '), Objections: r.objections.join('; '),
         Themes: r.themes.join('; '), 'Reply Date': r.replyDate, Interested: r.isInterested ? 'Yes' : 'No',
       }));
+    const cycleSuffix = activeCycle !== null ? `-Cycle${activeCycle}` : '';
     const date = new Date().toISOString().split('T')[0];
-    exportToCSV(rows, `Selery-Analyzed-Replies-${date}.csv`);
-  }, [report]);
+    exportToCSV(rows, `Selery-Analyzed-Replies${cycleSuffix}-${date}.csv`);
+  }, [filteredReport, activeCycle]);
 
   // Full loading state (only if Phase 1 hasn't loaded yet)
   if (phase1Loading) {
@@ -802,13 +920,13 @@ export default function AnalyticsPage() {
     );
   }
 
-  const hero = fastData?.heroMetrics;
+  const hero = filteredFastData?.heroMetrics;
 
   return (
     <PageContainer className="space-y-8 pb-12">
       {/* Export Buttons */}
       <div className="flex items-center justify-end gap-3 hide-on-export">
-        <button onClick={handleExportCSV} disabled={!report}
+        <button onClick={handleExportCSV} disabled={!filteredReport}
           className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-lg border bg-white hover:bg-gray-50 text-gray-700 transition-colors disabled:opacity-50">
           <FileSpreadsheet className="h-4 w-4" /> Download CSV
         </button>
@@ -821,6 +939,35 @@ export default function AnalyticsPage() {
 
       <div ref={contentRef} className="space-y-8">
 
+        {/* ── Cycle Tabs ──────────────────────────────────────────── */}
+        {availableCycles.length > 1 && (
+          <div className="flex items-center gap-2 overflow-x-auto pb-1 hide-on-export">
+            <button
+              onClick={() => setActiveCycle(null)}
+              className={`px-4 py-2 text-sm font-medium rounded-lg border transition-colors whitespace-nowrap ${
+                activeCycle === null
+                  ? 'bg-violet-600 text-white border-violet-600'
+                  : 'bg-white dark:bg-gray-800 hover:bg-gray-100 dark:hover:bg-gray-700 border-border'
+              }`}
+            >
+              All Cycles
+            </button>
+            {availableCycles.map(cycle => (
+              <button
+                key={cycle}
+                onClick={() => setActiveCycle(cycle)}
+                className={`px-4 py-2 text-sm font-medium rounded-lg border transition-colors whitespace-nowrap ${
+                  activeCycle === cycle
+                    ? 'bg-violet-600 text-white border-violet-600'
+                    : 'bg-white dark:bg-gray-800 hover:bg-gray-100 dark:hover:bg-gray-700 border-border'
+                }`}
+              >
+                Cycle {cycle}
+              </button>
+            ))}
+          </div>
+        )}
+
         {/* ── PHASE 1: Hero Section ─────────────────────────────── */}
         {hero && (
           <div className="bg-gradient-to-r from-violet-600 via-purple-600 to-indigo-700 text-white rounded-3xl p-8 shadow-xl">
@@ -830,7 +977,7 @@ export default function AnalyticsPage() {
               </div>
               <div>
                 <span className="text-white/80 font-medium text-sm uppercase tracking-wider">OUTBOUND ANALYTICS</span>
-                <h1 className="text-3xl font-bold">{fastData?.workspaceName || 'Selery'}</h1>
+                <h1 className="text-3xl font-bold">{filteredFastData?.workspaceName || 'Selery'}{activeCycle !== null ? ` — Cycle ${activeCycle}` : ''}</h1>
               </div>
             </div>
             <div className="grid grid-cols-2 md:grid-cols-6 gap-4">
@@ -881,10 +1028,10 @@ export default function AnalyticsPage() {
         )}
 
         {/* ── PHASE 1: Conversion Funnel ────────────────────────── */}
-        {fastData && <ConversionFunnel funnel={fastData.funnel} />}
+        {filteredFastData && <ConversionFunnel funnel={filteredFastData.funnel} />}
 
         {/* ── PHASE 1: Campaign Comparison ──────────────────────── */}
-        {fastData && <CampaignComparison campaigns={fastData.campaignComparison} />}
+        {filteredFastData && <CampaignComparison campaigns={filteredFastData.campaignComparison} />}
 
         {/* ── PHASE 1: Sequence Step + Sender side-by-side ──────── */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -901,7 +1048,7 @@ export default function AnalyticsPage() {
             <p className="text-sm text-muted-foreground">Reply analysis unavailable</p>
             <p className="text-xs text-muted-foreground mt-1">{phase2Error}</p>
           </div>
-        ) : report ? (
+        ) : filteredReport ? (
           <>
             {/* Response Intelligence */}
             <div>
@@ -912,13 +1059,13 @@ export default function AnalyticsPage() {
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                 <div className="rounded-lg border bg-card shadow-sm p-6">
                   <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-4">Sentiment Breakdown</h3>
-                  <SentimentOverview breakdown={report.sentimentBreakdown} total={report.totalAnalyzed} />
+                  <SentimentOverview breakdown={filteredReport.sentimentBreakdown} total={filteredReport.totalAnalyzed} />
                 </div>
                 <div className="rounded-lg border bg-card shadow-sm p-6">
                   <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-4">Top Themes</h3>
-                  {report.topThemes.length > 0 ? (
+                  {filteredReport.topThemes.length > 0 ? (
                     <div className="space-y-2">
-                      {report.topThemes.map((t) => (
+                      {filteredReport.topThemes.map((t) => (
                         <div key={t.theme} className="flex items-center justify-between">
                           <span className="text-sm font-medium capitalize">{t.theme}</span>
                           <span className="text-sm text-muted-foreground">{t.count} replies</span>
@@ -927,13 +1074,13 @@ export default function AnalyticsPage() {
                     </div>
                   ) : <p className="text-sm text-muted-foreground">No themes extracted yet</p>}
                 </div>
-                {report.topBuyingSignals.length > 0 && (
+                {filteredReport.topBuyingSignals.length > 0 && (
                   <div className="rounded-lg border bg-card shadow-sm p-6">
                     <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-4 flex items-center gap-2">
                       <Sparkles className="h-4 w-4 text-emerald-600" /> Buying Signals
                     </h3>
                     <div className="space-y-2">
-                      {report.topBuyingSignals.map((s) => (
+                      {filteredReport.topBuyingSignals.map((s) => (
                         <div key={s.signal} className="flex items-center justify-between">
                           <span className="text-sm font-medium text-emerald-700 dark:text-emerald-400">{s.signal}</span>
                           <span className="text-sm text-muted-foreground">{s.count}x</span>
@@ -942,13 +1089,13 @@ export default function AnalyticsPage() {
                     </div>
                   </div>
                 )}
-                {report.topObjections.length > 0 && (
+                {filteredReport.topObjections.length > 0 && (
                   <div className="rounded-lg border bg-card shadow-sm p-6">
                     <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-4 flex items-center gap-2">
                       <AlertTriangle className="h-4 w-4 text-red-600" /> Common Objections
                     </h3>
                     <div className="space-y-2">
-                      {report.topObjections.map((o) => (
+                      {filteredReport.topObjections.map((o) => (
                         <div key={o.objection} className="flex items-center justify-between">
                           <span className="text-sm font-medium text-red-700 dark:text-red-400">{o.objection}</span>
                           <span className="text-sm text-muted-foreground">{o.count}x</span>
@@ -971,20 +1118,20 @@ export default function AnalyticsPage() {
                   <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-4 flex items-center gap-2">
                     <Building2 className="h-4 w-4" /> Industry Distribution
                   </h3>
-                  <HorizontalBarChart data={report.industryDistribution} colorClass="bg-indigo-600" showInterested />
+                  <HorizontalBarChart data={filteredReport.industryDistribution} colorClass="bg-indigo-600" showInterested />
                 </div>
                 <div className="rounded-lg border bg-card shadow-sm p-6">
                   <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-4 flex items-center gap-2">
                     <Briefcase className="h-4 w-4" /> Title Seniority
                   </h3>
-                  <HorizontalBarChart data={report.seniorityDistribution} colorClass="bg-purple-600" showInterested />
+                  <HorizontalBarChart data={filteredReport.seniorityDistribution} colorClass="bg-purple-600" showInterested />
                 </div>
 
                 {/* Pipeline Companies (replaces Top Responding Companies) */}
                 <div className="lg:col-span-2">
                   <PipelineCompanies
-                    companies={report.pipelineCompanies || []}
-                    replies={report.replies}
+                    companies={filteredReport.pipelineCompanies || []}
+                    replies={filteredReport.replies}
                   />
                 </div>
               </div>
@@ -993,7 +1140,7 @@ export default function AnalyticsPage() {
             {/* Lead Deep-Dive */}
             <div>
               <h2 className="text-2xl font-bold text-foreground mb-4">Lead Deep-Dive</h2>
-              <LeadDeepDive replies={report.replies} industries={report.industries} campaigns={report.campaigns} />
+              <LeadDeepDive replies={filteredReport.replies} industries={filteredReport.industries} campaigns={filteredReport.campaigns} />
             </div>
           </>
         ) : null}
