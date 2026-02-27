@@ -15,7 +15,6 @@ import type {
   SequenceStepPerformance,
   DomainStats,
   CopyAnalysis,
-  StrategicSummary,
 } from '@/lib/types/emailbison';
 import { exportPageToPDF } from '@/lib/export-pdf';
 import { exportToCSV } from '@/lib/export-csv';
@@ -44,12 +43,12 @@ import {
   Target,
   ArrowRight,
   CheckCircle,
-  Lightbulb,
-  Shield,
-  Crosshair,
 } from 'lucide-react';
 
 // ── Utility Components ────────────────────────────────────────────────
+
+// Safety net: ensure Title Case for any labels that come from the API
+const toTitleCase = (s: string) => s.replace(/\b\w/g, c => c.toUpperCase());
 
 function SentimentBadge({ sentiment }: { sentiment: ReplySentiment }) {
   const config = {
@@ -858,151 +857,6 @@ function LeadDeepDive({
   );
 }
 
-// ── Strategic Insights (Phase 2 — AI second pass) ─────────────────────
-
-function StrategicInsights({ summary }: { summary: StrategicSummary }) {
-  return (
-    <div className="space-y-6">
-      {/* Executive Brief */}
-      <div className="bg-gradient-to-r from-violet-600 via-purple-600 to-indigo-600 rounded-2xl p-6 text-white shadow-lg">
-        <div className="flex items-start gap-3">
-          <div className="w-10 h-10 bg-white/20 backdrop-blur-sm rounded-xl flex items-center justify-center flex-shrink-0 mt-0.5">
-            <Brain className="h-5 w-5" />
-          </div>
-          <div>
-            <h3 className="font-bold text-lg mb-2">Strategic Analysis</h3>
-            <p className="text-white/90 leading-relaxed">{summary.executiveBrief}</p>
-          </div>
-        </div>
-      </div>
-
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Key Findings */}
-        {summary.keyFindings.length > 0 && (
-          <div className="rounded-lg border bg-card shadow-sm p-6">
-            <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-4 flex items-center gap-2">
-              <Lightbulb className="h-4 w-4 text-amber-500" /> Key Findings
-            </h3>
-            <ul className="space-y-3">
-              {summary.keyFindings.map((finding, i) => (
-                <li key={i} className="flex items-start gap-3">
-                  <span className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400 text-xs font-bold flex-shrink-0 mt-0.5">
-                    {i + 1}
-                  </span>
-                  <span className="text-sm text-foreground leading-relaxed">{finding}</span>
-                </li>
-              ))}
-            </ul>
-          </div>
-        )}
-
-        {/* Recommendations */}
-        {summary.recommendations.length > 0 && (
-          <div className="rounded-lg border bg-card shadow-sm p-6">
-            <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-4 flex items-center gap-2">
-              <Target className="h-4 w-4 text-blue-600" /> Recommendations
-            </h3>
-            <ul className="space-y-3">
-              {summary.recommendations.map((rec, i) => (
-                <li key={i} className="flex items-start gap-3">
-                  <span className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400 text-xs font-bold flex-shrink-0 mt-0.5">
-                    {i + 1}
-                  </span>
-                  <span className="text-sm text-foreground leading-relaxed">{rec}</span>
-                </li>
-              ))}
-            </ul>
-          </div>
-        )}
-      </div>
-
-      {/* Objection Playbook */}
-      {summary.objectionPlaybook.length > 0 && (
-        <div className="rounded-lg border bg-card shadow-sm overflow-hidden">
-          <div className="p-4 bg-gradient-to-r from-red-50 to-orange-50 dark:from-red-950/20 dark:to-orange-950/20 border-b">
-            <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-2">
-              <Shield className="h-4 w-4 text-red-600" />
-              Objection Playbook
-              <span className="text-xs font-normal text-muted-foreground ml-auto">How to handle the top pushbacks</span>
-            </h3>
-          </div>
-          <div className="divide-y">
-            {summary.objectionPlaybook.map((item, i) => (
-              <div key={i} className="p-4 hover:bg-muted/20 transition-colors">
-                <div className="flex items-center justify-between mb-2">
-                  <span className="font-medium text-red-700 dark:text-red-400 text-sm">&ldquo;{item.objection}&rdquo;</span>
-                  <span className="text-xs bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400 px-2 py-0.5 rounded-full font-medium">{item.frequency}x</span>
-                </div>
-                <div className="bg-emerald-50 dark:bg-emerald-950/20 rounded-lg p-3 border border-emerald-500/20">
-                  <div className="flex items-center gap-1 mb-1">
-                    <Crosshair className="h-3 w-3 text-emerald-600" />
-                    <span className="text-xs font-semibold text-emerald-700 dark:text-emerald-400 uppercase">Suggested Angle</span>
-                  </div>
-                  <p className="text-sm text-emerald-700 dark:text-emerald-300">{item.suggestedResponse}</p>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {/* Bottom row: Best Segments + Copy Recommendations + Competitors */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Best Segments */}
-        {summary.bestSegments.length > 0 && (
-          <div className="rounded-lg border bg-card shadow-sm p-6">
-            <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-4 flex items-center gap-2">
-              <TrendingUp className="h-4 w-4 text-emerald-600" /> Best Segments
-            </h3>
-            <ul className="space-y-2">
-              {summary.bestSegments.map((seg, i) => (
-                <li key={i} className="flex items-start gap-2 text-sm">
-                  <span className="text-emerald-500 mt-0.5">&#x2713;</span>
-                  <span className="text-foreground">{seg}</span>
-                </li>
-              ))}
-            </ul>
-          </div>
-        )}
-
-        {/* Copy Recommendations */}
-        {summary.copyRecommendations.length > 0 && (
-          <div className="rounded-lg border bg-card shadow-sm p-6">
-            <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-4 flex items-center gap-2">
-              <MessageSquare className="h-4 w-4 text-violet-600" /> Copy Recommendations
-            </h3>
-            <ul className="space-y-2">
-              {summary.copyRecommendations.map((rec, i) => (
-                <li key={i} className="flex items-start gap-2 text-sm">
-                  <span className="text-violet-500 mt-0.5">&#x2022;</span>
-                  <span className="text-foreground">{rec}</span>
-                </li>
-              ))}
-            </ul>
-          </div>
-        )}
-
-        {/* Competitor Intelligence */}
-        {summary.competitorMentions.length > 0 && (
-          <div className="rounded-lg border bg-card shadow-sm p-6">
-            <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-4 flex items-center gap-2">
-              <Building2 className="h-4 w-4 text-orange-600" /> Competitor Intelligence
-            </h3>
-            <div className="space-y-3">
-              {summary.competitorMentions.map((c, i) => (
-                <div key={i} className="flex items-center justify-between">
-                  <span className="text-sm font-medium text-foreground">{c.name}</span>
-                  <span className="text-xs bg-orange-100 dark:bg-orange-900/30 text-orange-600 dark:text-orange-400 px-2 py-0.5 rounded-full font-medium">{c.count} mention{c.count !== 1 ? 's' : ''}</span>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
-      </div>
-    </div>
-  );
-}
-
 // ── Phase 2 Skeleton ──────────────────────────────────────────────────
 
 function Phase2Skeleton() {
@@ -1479,17 +1333,6 @@ export default function AnalyticsPage() {
           </div>
         ) : filteredReport ? (
           <>
-            {/* Strategic Insights (AI second pass) */}
-            {filteredReport.strategicSummary && (
-              <div>
-                <h2 className="text-2xl font-bold text-foreground mb-4 flex items-center gap-2">
-                  <Sparkles className="h-6 w-6 text-violet-600" />
-                  Strategic Insights
-                </h2>
-                <StrategicInsights summary={filteredReport.strategicSummary} />
-              </div>
-            )}
-
             {/* Response Intelligence */}
             <div>
               <h2 className="text-2xl font-bold text-foreground mb-4 flex items-center gap-2">
@@ -1507,7 +1350,7 @@ export default function AnalyticsPage() {
                     <div className="space-y-2">
                       {filteredReport.topThemes.map((t) => (
                         <div key={t.theme} className="flex items-center justify-between">
-                          <span className="text-sm font-medium capitalize">{t.theme}</span>
+                          <span className="text-sm font-medium">{toTitleCase(t.theme)}</span>
                           <span className="text-sm text-muted-foreground">{t.count} replies</span>
                         </div>
                       ))}
@@ -1522,7 +1365,7 @@ export default function AnalyticsPage() {
                     <div className="space-y-2">
                       {filteredReport.topBuyingSignals.map((s) => (
                         <div key={s.signal} className="flex items-center justify-between">
-                          <span className="text-sm font-medium text-emerald-700 dark:text-emerald-400">{s.signal}</span>
+                          <span className="text-sm font-medium text-emerald-700 dark:text-emerald-400">{toTitleCase(s.signal)}</span>
                           <span className="text-sm text-muted-foreground">{s.count}x</span>
                         </div>
                       ))}
@@ -1537,7 +1380,7 @@ export default function AnalyticsPage() {
                     <div className="space-y-2">
                       {filteredReport.topObjections.map((o) => (
                         <div key={o.objection} className="flex items-center justify-between">
-                          <span className="text-sm font-medium text-red-700 dark:text-red-400">{o.objection}</span>
+                          <span className="text-sm font-medium text-red-700 dark:text-red-400">{toTitleCase(o.objection)}</span>
                           <span className="text-sm text-muted-foreground">{o.count}x</span>
                         </div>
                       ))}
