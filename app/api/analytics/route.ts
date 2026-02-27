@@ -184,9 +184,9 @@ async function classifyRepliesWithAI(
 Classify each reply below. For each, return:
 - **sentiment**: "positive" | "negative" | "neutral"
 - **intent**: "interested" | "not-interested" | "needs-info" | "referral" | "out-of-office" | "unsubscribe"
-- **themes**: 1-3 short keywords
-- **buying_signals**: concrete positive indicators (empty array if none)
-- **objections**: concrete resistance points (empty array if none)
+- **themes**: 1-3 specific, actionable topic labels (see QUALITY RULES below — NEVER use generic words like "fulfillment", "general", "response")
+- **buying_signals**: concrete positive indicators (empty array if none — see QUALITY RULES)
+- **objections**: concrete resistance points (empty array if none — see QUALITY RULES)
 - **summary**: one sentence summary
 
 ### CLASSIFICATION RULES (follow strictly):
@@ -220,8 +220,24 @@ Classify each reply below. For each, return:
 
 **REFERRAL** — Forwards to another person or says "talk to X instead"
 
+### QUALITY RULES (follow strictly):
+**THEMES** must be SPECIFIC and ACTIONABLE, not generic. Each should tell the reader what the reply is about.
+  - GOOD: "pricing inquiry", "switching from current 3PL", "international shipping question", "seasonal volume concern", "cold outreach rejection", "in-house fulfillment", "no physical products", "already has vendor"
+  - BAD (NEVER use): "fulfillment", "general", "response", "email", "business", "company", "inquiry", "communication"
+  - For declines, capture WHY: "existing vendor", "too small for 3PL", "no physical products", "handles in-house"
+  - For interest, capture WHAT: "rate comparison", "warehouse location", "order volume scaling", "kitting services"
+
+**BUYING SIGNALS** must be CONCRETE actions or statements, not vague summaries.
+  - GOOD: "asked for pricing", "wants to schedule a call", "currently evaluating 3PLs", "unhappy with current provider", "expanding to new channels"
+  - BAD (NEVER use): "seems positive", "replied to email", "showed interest"
+
+**OBJECTIONS** must capture the SPECIFIC barrier.
+  - GOOD: "locked into contract with ShipBob", "order volume under 100/mo", "only sells digital products", "handles fulfillment in own warehouse", "no budget for 3PL switch"
+  - BAD (NEVER use): "not interested", "declined", "existing vendor" (too vague — say WHICH vendor or WHY)
+
 ### IMPORTANT:
-- Some replies are tagged [FLAGGED AS INTERESTED BY PLATFORM]. These have been manually verified as interested. For these, sentiment MUST be "positive" and intent MUST be "interested". Still provide accurate themes, buying_signals, and summary.
+- The intent "interested" MUST ONLY be used for replies tagged [FLAGGED AS INTERESTED BY PLATFORM]. These have been manually verified as interested. For these, sentiment MUST be "positive" and intent MUST be "interested". Still provide accurate themes, buying_signals, and summary.
+- For ALL other replies (not flagged), NEVER use intent "interested". Use "needs-info" for engaged/positive replies, "not-interested" for rejections, etc.
 - Do NOT mark someone as "positive" just because they replied. Many replies are rejections.
 - If someone says they don't have inventory, don't sell physical products, are a licensing/IP company, or otherwise can't use fulfillment → that is NEGATIVE/NOT-INTERESTED.
 - "Call" or "connect" alone does NOT mean interested — look at full context.
@@ -516,6 +532,11 @@ export async function GET(request: Request) {
         }
       }
 
+      // REVERSE GUARD: "interested" intent reserved for EB-flagged leads only
+      if (!reply.interested && classification.intent === 'interested') {
+        classification.intent = 'needs-info';
+      }
+
       const company = lead?.company || (() => {
         const domain = reply.from_email_address.split('@')[1] || '';
         return domain.split('.')[0].charAt(0).toUpperCase() + domain.split('.')[0].slice(1);
@@ -598,8 +619,26 @@ export async function GET(request: Request) {
       }
     }
 
-    // Pipeline companies: only companies with at least one interested reply
-    const pipelineCompanies = companyDist.filter(c => c.interestedCount > 0);
+    // Pipeline companies: built SEPARATELY — find ALL interested companies without the top-15 constraint
+    const pipelineMap = new Map<string, { count: number; interestedCount: number }>();
+    for (const r of analyzedReplies) {
+      if (r.isInterested) {
+        const existing = pipelineMap.get(r.company) || { count: 0, interestedCount: 0 };
+        existing.count++;
+        existing.interestedCount++;
+        pipelineMap.set(r.company, existing);
+      }
+    }
+    const pipelineCompanies: DemographicDistribution[] = Array.from(pipelineMap.entries())
+      .map(([label, data]) => ({
+        label,
+        count: data.count,
+        percentage: analyzedReplies.length > 0
+          ? parseFloat(((data.count / analyzedReplies.length) * 100).toFixed(1))
+          : 0,
+        interestedCount: data.interestedCount,
+      }))
+      .sort((a, b) => b.interestedCount - a.interestedCount);
 
     const report: AnalyticsReport = {
       workspaceName,

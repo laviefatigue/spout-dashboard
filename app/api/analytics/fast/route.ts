@@ -93,6 +93,7 @@ export async function GET() {
       });
     }
 
+    const totalCampaignCount = activeCampaigns.length;
     const sequenceStepPerformance: SequenceStepPerformance[] = Array.from(stepAgg.entries())
       .sort(([a], [b]) => a - b)
       .map(([stepNumber, data]) => ({
@@ -108,7 +109,11 @@ export async function GET() {
           ? parseFloat(((data.interested / data.sent) * 100).toFixed(2))
           : 0,
         campaignCount: data.campaigns,
-      }));
+      }))
+      .filter(step =>
+        step.campaignCount >= Math.max(Math.floor(totalCampaignCount * 0.3), 1) &&
+        step.totalSent >= 100
+      );
 
     const report: FastAnalytics = {
       workspaceName: 'Selery',

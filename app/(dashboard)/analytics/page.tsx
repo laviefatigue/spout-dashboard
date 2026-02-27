@@ -171,9 +171,9 @@ function ConversionFunnel({ funnel }: { funnel: FastAnalytics['funnel'] }) {
                   <p className="text-2xl font-bold">{step.value.toLocaleString()}</p>
                   <p className="text-xs text-white/80 mt-1">{step.label}</p>
                 </div>
-                {i > 0 && (
-                  <p className="text-xs text-muted-foreground mt-1.5">{convRate}%</p>
-                )}
+                <p className={`text-xs text-muted-foreground mt-1.5 ${i === 0 ? 'invisible' : ''}`}>
+                  {i > 0 ? `${convRate}%` : '\u00A0'}
+                </p>
               </div>
               {i < steps.length - 1 && (
                 <ArrowRight className="h-4 w-4 text-muted-foreground flex-shrink-0" />
@@ -352,8 +352,8 @@ function SenderPerformance({ data }: { data: SenderAnalytics }) {
                     <p className="text-xs text-muted-foreground">Bounce</p>
                   </div>
                   <div>
-                    <p className="text-lg font-bold text-emerald-600">{p.interestRate}%</p>
-                    <p className="text-xs text-muted-foreground">Interest</p>
+                    <p className="text-lg font-bold text-indigo-600">{p.replied.toLocaleString()}</p>
+                    <p className="text-xs text-muted-foreground">Replied</p>
                   </div>
                 </div>
               </div>
@@ -373,7 +373,7 @@ function SenderPerformance({ data }: { data: SenderAnalytics }) {
                 <th className="h-9 px-4 text-right font-medium text-muted-foreground text-xs uppercase">Sent</th>
                 <th className="h-9 px-4 text-right font-medium text-muted-foreground text-xs uppercase">Reply %</th>
                 <th className="h-9 px-4 text-right font-medium text-muted-foreground text-xs uppercase">Bounce %</th>
-                <th className="h-9 px-4 text-right font-medium text-muted-foreground text-xs uppercase">Interest %</th>
+                <th className="h-9 px-4 text-right font-medium text-muted-foreground text-xs uppercase">Replied</th>
               </tr>
             </thead>
             <tbody>
@@ -389,9 +389,7 @@ function SenderPerformance({ data }: { data: SenderAnalytics }) {
                     </span>
                   </td>
                   <td className="py-2.5 px-4 text-right">
-                    <span className={d.interestRate > 0 ? 'text-emerald-600 font-medium' : 'text-muted-foreground'}>
-                      {d.interestRate}%
-                    </span>
+                    <span className="text-muted-foreground">{d.replied.toLocaleString()}</span>
                   </td>
                 </tr>
               ))}
@@ -835,13 +833,20 @@ export default function AnalyticsPage() {
                 <h1 className="text-3xl font-bold">{fastData?.workspaceName || 'Selery'}</h1>
               </div>
             </div>
-            <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+            <div className="grid grid-cols-2 md:grid-cols-6 gap-4">
               <div className="bg-white/10 backdrop-blur-sm rounded-2xl p-4 border border-white/20">
                 <div className="flex items-center gap-2 mb-1">
                   <BarChart3 className="h-4 w-4 text-white/70" />
                   <span className="text-white/70 text-xs">Campaigns</span>
                 </div>
                 <p className="text-2xl font-bold">{hero.activeCampaigns}</p>
+              </div>
+              <div className="bg-white/10 backdrop-blur-sm rounded-2xl p-4 border border-white/20">
+                <div className="flex items-center gap-2 mb-1">
+                  <Mail className="h-4 w-4 text-white/70" />
+                  <span className="text-white/70 text-xs">Emails Sent</span>
+                </div>
+                <p className="text-2xl font-bold">{hero.emailsSent.toLocaleString()}</p>
               </div>
               <div className="bg-white/10 backdrop-blur-sm rounded-2xl p-4 border border-white/20">
                 <div className="flex items-center gap-2 mb-1">

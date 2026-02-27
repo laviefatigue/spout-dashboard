@@ -231,8 +231,12 @@
   animation: fade-in 0.3s ease-out forwards;
 }
 
-/* PDF export mode — hide interactive elements */
-body.exporting-pdf .hide-on-export {
+/* PDF export mode — hide interactive elements and force clean output */
+body.exporting-pdf .hide-on-export,
+body.exporting-pdf button,
+body.exporting-pdf select,
+body.exporting-pdf input,
+body.exporting-pdf .animate-spin {
   display: none !important;
 }
 
@@ -240,4 +244,22 @@ body.exporting-pdf .max-h-\[700px\],
 body.exporting-pdf .max-h-\[600px\] {
   max-height: none !important;
   overflow: visible !important;
+}
+
+body.exporting-pdf .overflow-y-auto,
+body.exporting-pdf .overflow-x-auto {
+  overflow: visible !important;
+}
+
+body.exporting-pdf .sticky {
+  position: relative !important;
+}
+
+body.exporting-pdf {
+  background: #ffffff !important;
+  color: #1a1a1a !important;
+}
+
+body.exporting-pdf * {
+  color-scheme: light !important;
 }
