@@ -282,13 +282,13 @@ function CampaignComparison({ campaigns }: { campaigns: CampaignComparisonItem[]
                   </td>
                   <td className="py-3 px-4">
                     <div className="flex items-center gap-2">
-                      <span className={`w-2 h-2 rounded-full flex-shrink-0 ${c.emailsSent > 0 ? 'bg-selery-gold' : 'bg-gray-400'}`} />
-                      <span className={`font-medium truncate max-w-[200px] ${c.emailsSent === 0 ? 'text-muted-foreground' : 'text-foreground'}`} title={c.name}>
+                      <span className={`w-2 h-2 rounded-full flex-shrink-0 ${c.status.toLowerCase() === 'active' ? 'bg-selery-gold' : 'bg-gray-400'}`} />
+                      <span className={`font-medium truncate max-w-[200px] ${c.status.toLowerCase() === 'draft' ? 'text-muted-foreground' : 'text-foreground'}`} title={c.name}>
                         {c.name.replace(/^Cycle \d+:\s*/, '').replace(/^Campaign \d+,\s*/, '')}
                       </span>
-                      {c.emailsSent === 0 && (
+                      {c.status.toLowerCase() === 'draft' && (
                         <span className="text-[10px] font-medium px-1.5 py-0.5 rounded bg-muted text-muted-foreground uppercase tracking-wider">
-                          {c.status}
+                          {'Draft'}
                         </span>
                       )}
                     </div>
@@ -1301,7 +1301,8 @@ export default function AnalyticsPage() {
                   <BarChart3 className="h-4 w-4 text-white/70" />
                   <span className="text-white/70 text-xs">Campaigns</span>
                 </div>
-                <p className="text-2xl font-bold">{hero.activeCampaigns}</p>
+                <p className="text-2xl font-bold">{hero.totalCampaigns}</p>
+                <p className="text-xs text-white/60">{hero.activeCampaigns} sending</p>
               </div>
               <div className="bg-white/10 backdrop-blur-sm rounded-2xl p-4 border border-white/20">
                 <div className="flex items-center gap-2 mb-1">
