@@ -282,11 +282,11 @@ function CampaignComparison({ campaigns }: { campaigns: CampaignComparisonItem[]
                   </td>
                   <td className="py-3 px-4">
                     <div className="flex items-center gap-2">
-                      <span className={`w-2 h-2 rounded-full flex-shrink-0 ${c.status === 'Active' ? 'bg-selery-gold' : c.status === 'Draft' ? 'bg-blue-400' : 'bg-gray-400'}`} />
+                      <span className={`w-2 h-2 rounded-full flex-shrink-0 ${c.emailsSent > 0 ? 'bg-selery-gold' : 'bg-gray-400'}`} />
                       <span className={`font-medium truncate max-w-[200px] ${c.emailsSent === 0 ? 'text-muted-foreground' : 'text-foreground'}`} title={c.name}>
                         {c.name.replace(/^Cycle \d+:\s*/, '').replace(/^Campaign \d+,\s*/, '')}
                       </span>
-                      {c.status !== 'Active' && (
+                      {c.emailsSent === 0 && (
                         <span className="text-[10px] font-medium px-1.5 py-0.5 rounded bg-muted text-muted-foreground uppercase tracking-wider">
                           {c.status}
                         </span>
@@ -1029,7 +1029,7 @@ export default function AnalyticsPage() {
       heroMetrics: {
         ...fastData.heroMetrics,
         totalCampaigns: filtered.length,
-        totalLeads: filtered.reduce((s, c) => s + (c.totalLeads || 0), 0),
+        totalLeads: filtered.filter(c => c.emailsSent > 0).reduce((s, c) => s + (c.totalLeads || 0), 0),
         activeCampaigns: activeSending,
         emailsSent,
         leadsContacted,
@@ -1042,7 +1042,7 @@ export default function AnalyticsPage() {
           : 0,
       },
       funnel: {
-        totalLeads: filtered.reduce((s, c) => s + (c.totalLeads || c.leadsContacted), 0),
+        totalLeads: filtered.filter(c => c.emailsSent > 0).reduce((s, c) => s + (c.totalLeads || c.leadsContacted), 0),
         contacted: leadsContacted,
         replied: totalReplies,
         interested: totalInterested,

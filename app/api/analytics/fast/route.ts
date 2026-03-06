@@ -38,7 +38,7 @@ export async function GET() {
     const statsMap = new Map(statsResults.map(r => [r.campaignId, r.stats]));
 
     // Build hero metrics from campaign list objects
-    const totalLeads = campaigns.reduce((s, c) => s + c.total_leads, 0);
+    const totalLeads = activeCampaigns.reduce((s, c) => s + c.total_leads, 0);
     const leadsContacted = activeCampaigns.reduce((s, c) => s + c.total_leads_contacted, 0);
     const emailsSent = activeCampaigns.reduce((s, c) => s + c.emails_sent, 0);
     const totalReplies = activeCampaigns.reduce((s, c) => s + c.unique_replies, 0);
@@ -122,7 +122,7 @@ export async function GET() {
     const report: FastAnalytics = {
       workspaceName: 'Selery',
       heroMetrics: {
-        totalCampaigns: campaigns.length,
+        totalCampaigns: allCampaignsWithLeads.length,
         activeCampaigns: activeCampaigns.length,
         totalLeads,
         leadsContacted,
