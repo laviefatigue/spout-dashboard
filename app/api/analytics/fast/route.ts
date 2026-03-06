@@ -15,7 +15,9 @@ export async function GET() {
 
     // Fetch campaign list
     const { data: campaigns } = await getCampaigns();
+    // Include all campaigns with leads loaded (not just those with sends)
     const activeCampaigns = campaigns.filter(c => c.emails_sent > 0);
+    const allCampaignsWithLeads = campaigns.filter(c => c.total_leads > 0);
 
     // Fetch stats for all active campaigns in parallel
     const now = new Date();
@@ -43,12 +45,13 @@ export async function GET() {
     const totalInterested = activeCampaigns.reduce((s, c) => s + c.interested, 0);
     const totalBounced = activeCampaigns.reduce((s, c) => s + c.bounced, 0);
 
-    // Campaign comparison
-    const campaignComparison: CampaignComparisonItem[] = activeCampaigns
+    // Campaign comparison — include all campaigns with leads loaded
+    const campaignComparison: CampaignComparisonItem[] = allCampaignsWithLeads
       .map(c => ({
         id: c.id,
         name: c.name,
         status: c.status,
+        totalLeads: c.total_leads,
         leadsContacted: c.total_leads_contacted,
         emailsSent: c.emails_sent,
         uniqueReplies: c.unique_replies,
@@ -145,7 +148,7 @@ export async function GET() {
       campaignComparison,
       sequenceStepPerformance,
       availableCycles: [...new Set(
-        activeCampaigns
+        allCampaignsWithLeads
           .map(c => {
             const match = c.name.match(/^Cycle\s+(\d+)/i);
             return match ? parseInt(match[1], 10) : null;

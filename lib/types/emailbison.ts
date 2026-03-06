@@ -465,6 +465,7 @@ export interface CampaignComparisonItem {
   id: number;
   name: string;
   status: string;
+  totalLeads: number;
   leadsContacted: number;
   emailsSent: number;
   uniqueReplies: number;

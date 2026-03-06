@@ -261,6 +261,7 @@ function CampaignComparison({ campaigns }: { campaigns: CampaignComparisonItem[]
             <tr className="border-b bg-muted/30">
               <th className="h-10 px-4 text-left font-medium text-muted-foreground text-xs uppercase tracking-wider w-8"></th>
               <th className="h-10 px-4 text-left font-medium text-muted-foreground text-xs uppercase tracking-wider">Campaign</th>
+              <th className="h-10 px-4 text-right font-medium text-muted-foreground text-xs uppercase tracking-wider">Leads</th>
               <th className="h-10 px-4 text-right font-medium text-muted-foreground text-xs uppercase tracking-wider">Sent</th>
               <th className="h-10 px-4 text-right font-medium text-muted-foreground text-xs uppercase tracking-wider">Contacted</th>
               <th className="h-10 px-4 text-right font-medium text-muted-foreground text-xs uppercase tracking-wider">Reply %</th>
@@ -281,12 +282,18 @@ function CampaignComparison({ campaigns }: { campaigns: CampaignComparisonItem[]
                   </td>
                   <td className="py-3 px-4">
                     <div className="flex items-center gap-2">
-                      <span className={`w-2 h-2 rounded-full flex-shrink-0 ${c.status === 'Active' ? 'bg-selery-gold' : 'bg-gray-400'}`} />
-                      <span className="font-medium text-foreground truncate max-w-[200px]" title={c.name}>
+                      <span className={`w-2 h-2 rounded-full flex-shrink-0 ${c.status === 'Active' ? 'bg-selery-gold' : c.status === 'Draft' ? 'bg-blue-400' : 'bg-gray-400'}`} />
+                      <span className={`font-medium truncate max-w-[200px] ${c.emailsSent === 0 ? 'text-muted-foreground' : 'text-foreground'}`} title={c.name}>
                         {c.name.replace(/^Cycle \d+:\s*/, '').replace(/^Campaign \d+,\s*/, '')}
                       </span>
+                      {c.status !== 'Active' && (
+                        <span className="text-[10px] font-medium px-1.5 py-0.5 rounded bg-muted text-muted-foreground uppercase tracking-wider">
+                          {c.status}
+                        </span>
+                      )}
                     </div>
                   </td>
+                  <td className="py-3 px-4 text-right text-muted-foreground">{c.totalLeads.toLocaleString()}</td>
                   <td className="py-3 px-4 text-right text-muted-foreground">{c.emailsSent.toLocaleString()}</td>
                   <td className="py-3 px-4 text-right text-muted-foreground">{c.leadsContacted.toLocaleString()}</td>
                   <td className="py-3 px-4 text-right">
@@ -319,7 +326,7 @@ function CampaignComparison({ campaigns }: { campaigns: CampaignComparisonItem[]
                 </tr>
                 {expandedId === c.id && (
                   <tr className="bg-muted/30">
-                    <td colSpan={8} className="p-6">
+                    <td colSpan={9} className="p-6">
                       <div className="space-y-4">
                         {/* Stats Grid */}
                         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
@@ -1016,11 +1023,14 @@ export default function AnalyticsPage() {
     const leadsContacted = filtered.reduce((s, c) => s + c.leadsContacted, 0);
     const totalReplies = filtered.reduce((s, c) => s + c.uniqueReplies, 0);
     const totalInterested = filtered.reduce((s, c) => s + c.interested, 0);
+    const activeSending = filtered.filter(c => c.emailsSent > 0).length;
     return {
       ...fastData,
       heroMetrics: {
         ...fastData.heroMetrics,
-        activeCampaigns: filtered.length,
+        totalCampaigns: filtered.length,
+        totalLeads: filtered.reduce((s, c) => s + (c.totalLeads || 0), 0),
+        activeCampaigns: activeSending,
         emailsSent,
         leadsContacted,
         totalReplies,
@@ -1032,7 +1042,7 @@ export default function AnalyticsPage() {
           : 0,
       },
       funnel: {
-        totalLeads: leadsContacted,
+        totalLeads: filtered.reduce((s, c) => s + (c.totalLeads || c.leadsContacted), 0),
         contacted: leadsContacted,
         replied: totalReplies,
         interested: totalInterested,
