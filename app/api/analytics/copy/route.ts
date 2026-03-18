@@ -566,7 +566,7 @@ export async function GET(request: Request) {
 
     const activeCampaigns = filteredCampaigns.filter(c =>
       c.emails_sent > 0 &&
-      ['active', 'completed', 'launching'].includes(c.status.toLowerCase())
+      !['draft', 'archived', 'failed'].includes(c.status.toLowerCase())
     );
 
     // Get stats for subject lines

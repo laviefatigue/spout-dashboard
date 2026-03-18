@@ -1029,7 +1029,7 @@ export default function AnalyticsPage() {
         const query = activeCycle !== null ? `?cycle=${activeCycle}` : '';
         const [fastRes, senderRes] = await Promise.all([
           fetch(`/api/analytics/fast${query}`),
-          fetch('/api/analytics/senders'),
+          fetch(`/api/analytics/senders${query}`),
         ]);
         if (fastRes.ok) {
           const { data } = await fastRes.json();
@@ -1094,12 +1094,14 @@ export default function AnalyticsPage() {
     setPhase2Loading(true);
     setPhase3Loading(true);
     try {
-      const [fastRes, deepRes, copyRes] = await Promise.all([
+      const [fastRes, senderRes, deepRes, copyRes] = await Promise.all([
         fetch(`/api/analytics/fast${query}`),
+        fetch(`/api/analytics/senders${query}`),
         fetch(`/api/analytics${query}`),
         fetch(`/api/analytics/copy${query}`),
       ]);
       if (fastRes.ok) { const { data } = await fastRes.json(); setFastData(data); }
+      if (senderRes.ok) { const { data } = await senderRes.json(); setSenderData(data); }
       if (deepRes.ok) { const { data } = await deepRes.json(); setReport(data); }
       if (copyRes.ok) { const { data } = await copyRes.json(); setCopyData(data); }
     } catch {

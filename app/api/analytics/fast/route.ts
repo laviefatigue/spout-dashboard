@@ -33,10 +33,10 @@ export async function GET(request: Request) {
     // Fetch ALL campaigns (paginated)
     const campaigns = await getAllCampaigns();
 
-    // Compute available cycles from the FULL unfiltered list
+    // Compute available cycles from the FULL unfiltered list (all campaigns, not just those with leads)
     const allCampaignsWithLeads = campaigns.filter(c => c.total_leads > 0);
     const availableCycles = [...new Set(
-      allCampaignsWithLeads
+      campaigns
         .map(c => {
           const match = c.name.match(/^Cycle\s+(\d+)/i);
           return match ? parseInt(match[1], 10) : null;
