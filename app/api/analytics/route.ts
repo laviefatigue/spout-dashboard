@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import Anthropic from '@anthropic-ai/sdk';
+import { getCache, setCache, clearCache } from '@/lib/cache';
 import type {
   AnalyzedReply,
   AnalyticsReport,
@@ -401,6 +402,34 @@ function buildDistribution(items: string[]): DemographicDistribution[] {
 
 // ── Parallel fetch helpers ─────────────────────────────────────────────
 
+/** Fetch ALL campaigns with pagination (inline version — this route has its own fetchApi) */
+async function fetchAllCampaigns(): Promise<EBCampaign[]> {
+  const page1 = await fetchApi<{
+    data: EBCampaign[];
+    meta?: { last_page: number; current_page: number };
+  }>('/api/campaigns?page=1&per_page=100');
+
+  const all = [...(page1.data || [])];
+  const lastPage = page1.meta?.last_page || 1;
+
+  if (lastPage > 1) {
+    const pageNums = Array.from({ length: lastPage - 1 }, (_, i) => i + 2);
+    const pageResults = await Promise.all(
+      pageNums.map(async (p) => {
+        try {
+          const res = await fetchApi<{ data: EBCampaign[] }>(`/api/campaigns?page=${p}&per_page=100`);
+          return res.data || [];
+        } catch {
+          return [];
+        }
+      })
+    );
+    for (const pageData of pageResults) all.push(...pageData);
+  }
+
+  return all;
+}
+
 /** Fetch page 1 to get meta, then fetch remaining pages in parallel */
 async function fetchAllReplies(): Promise<EBReply[]> {
   const page1 = await fetchApi<{
@@ -476,19 +505,42 @@ export async function GET(request: Request) {
       // Continue with current workspace
     }
 
-    // Fetch workspace name + campaigns + replies in parallel
+    const cycleParam = url.searchParams.get('cycle');
+    const refresh = url.searchParams.get('refresh') === 'true';
+
+    const cacheKey = `deep-analytics-cycle-${cycleParam || 'all'}`;
+    if (!refresh) {
+      const cached = await getCache<AnalyticsReport>(cacheKey);
+      if (cached) {
+        return NextResponse.json({ data: cached }, {
+          headers: { 'Cache-Control': 'public, s-maxage=600, stale-while-revalidate=300' },
+        });
+      }
+    } else {
+      await clearCache('deep-analytics');
+    }
+
+    // Fetch workspace name + campaigns (paginated) + replies in parallel
     type UserData = { data: { workspace?: { name: string }; team?: { name: string } } };
-    const [userResult, campaignsResult, allReplies] = await Promise.all([
+    const [userResult, allCampaigns, allReplies] = await Promise.all([
       fetchApi<UserData>('/api/users')
         .catch((): UserData => ({ data: { workspace: { name: 'Selery' } } })),
-      fetchApi<{ data: EBCampaign[] }>('/api/campaigns'),
+      fetchAllCampaigns(),
       fetchAllReplies(),
     ]);
 
     const workspaceName = userResult.data.workspace?.name || userResult.data.team?.name || 'Selery';
-    const campaigns = campaignsResult.data;
+
+    // Apply cycle filter if requested
+    const cycleFilter = cycleParam ? parseInt(cycleParam, 10) : null;
+    const cycleRegex = cycleFilter !== null ? new RegExp(`^Cycle\\s+${cycleFilter}\\b`, 'i') : null;
+
+    const campaigns = cycleRegex
+      ? allCampaigns.filter(c => cycleRegex.test(c.name))
+      : allCampaigns;
+
     const activeCampaigns = campaigns.filter(c => c.emails_sent > 0);
-    const campaignMap = new Map(campaigns.map(c => [c.id, c]));
+    const campaignMap = new Map(allCampaigns.map(c => [c.id, c]));
 
     // Filter to replies from active campaigns only
     const campaignIds = new Set(activeCampaigns.map(c => c.id));
@@ -513,8 +565,25 @@ export async function GET(request: Request) {
         interested: r.interested,
       }));
 
-    // Run AI classification (all batches in parallel internally)
-    const classifications = await classifyRepliesWithAI(repliesForAnalysis);
+    // Check cache for existing AI classifications (24h TTL)
+    const cachedClassifications = await getCache<Record<number, AIClassification>>('ai-classifications');
+    const cachedMap = cachedClassifications ? new Map(Object.entries(cachedClassifications).map(([k, v]) => [parseInt(k), v])) : new Map<number, AIClassification>();
+
+    const uncachedReplies = repliesForAnalysis.filter(r => !cachedMap.has(r.id));
+
+    // Only classify uncached replies (saves AI API calls + money)
+    let newClassifications = new Map<number, AIClassification>();
+    if (uncachedReplies.length > 0) {
+      newClassifications = await classifyRepliesWithAI(uncachedReplies);
+    }
+
+    // Merge cached + new
+    const classifications = new Map<number, AIClassification>([...cachedMap, ...newClassifications]);
+
+    // Persist updated classification cache (24 hours)
+    const classificationObj: Record<number, AIClassification> = {};
+    for (const [id, cls] of classifications) classificationObj[id] = cls;
+    await setCache('ai-classifications', classificationObj, 86400);
 
     // Build analyzed replies — ONLY from human replies
     const analyzedReplies: AnalyzedReply[] = [];
@@ -705,7 +774,7 @@ export async function GET(request: Request) {
 
     const report: AnalyticsReport = {
       workspaceName,
-      totalReplies: allReplies.length,
+      totalReplies: campaignReplies.length,
       totalAnalyzed: analyzedReplies.length,
       sentimentBreakdown,
       intentBreakdown,
@@ -720,6 +789,9 @@ export async function GET(request: Request) {
       campaigns: activeCampaigns.map(c => ({ id: c.id, name: c.name })),
       industries: [...new Set(industries)].sort(),
     };
+
+    // Cache deep analytics for 30 minutes
+    await setCache(cacheKey, report, 1800);
 
     return NextResponse.json({ data: report }, {
       headers: { 'Cache-Control': 'public, s-maxage=600, stale-while-revalidate=300' },

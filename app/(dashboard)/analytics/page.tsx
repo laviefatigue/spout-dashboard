@@ -7,7 +7,6 @@ import type {
   AnalyticsReport,
   AnalyzedReply,
   ReplySentiment,
-  ReplyIntent,
   DemographicDistribution,
   FastAnalytics,
   SenderAnalytics,
@@ -1009,124 +1008,27 @@ export default function AnalyticsPage() {
     return fastData?.availableCycles || [];
   }, [fastData]);
 
-  // Parse cycle number from a campaign name
-  const parseCycle = useCallback((name: string): number | null => {
-    const match = name.match(/^Cycle\s+(\d+)/i);
-    return match ? parseInt(match[1], 10) : null;
-  }, []);
+  // Server-side now handles cycle filtering — pass data through directly
+  const filteredFastData = fastData;
+  const filteredReport = report;
 
-  // Filter Phase 1 data by cycle
-  const filteredFastData = useMemo(() => {
-    if (!fastData || activeCycle === null) return fastData;
-    const filtered = fastData.campaignComparison.filter(c => parseCycle(c.name) === activeCycle);
-    const emailsSent = filtered.reduce((s, c) => s + c.emailsSent, 0);
-    const leadsContacted = filtered.reduce((s, c) => s + c.leadsContacted, 0);
-    const totalReplies = filtered.reduce((s, c) => s + c.uniqueReplies, 0);
-    const totalInterested = filtered.reduce((s, c) => s + c.interested, 0);
-    const activeSending = filtered.filter(c => c.emailsSent > 0).length;
-    return {
-      ...fastData,
-      heroMetrics: {
-        ...fastData.heroMetrics,
-        totalCampaigns: filtered.length,
-        totalLeads: filtered.filter(c => c.emailsSent > 0).reduce((s, c) => s + (c.totalLeads || 0), 0),
-        activeCampaigns: activeSending,
-        emailsSent,
-        leadsContacted,
-        totalReplies,
-        totalInterested,
-        avgReplyRate: leadsContacted > 0 ? parseFloat(((totalReplies / leadsContacted) * 100).toFixed(2)) : 0,
-        avgInterestRate: leadsContacted > 0 ? parseFloat(((totalInterested / leadsContacted) * 100).toFixed(2)) : 0,
-        avgBounceRate: emailsSent > 0
-          ? parseFloat(((filtered.reduce((s, c) => s + Math.round(c.bounceRate * c.emailsSent / 100), 0) / emailsSent) * 100).toFixed(2))
-          : 0,
-      },
-      funnel: {
-        totalLeads: filtered.filter(c => c.emailsSent > 0).reduce((s, c) => s + (c.totalLeads || c.leadsContacted), 0),
-        contacted: leadsContacted,
-        replied: totalReplies,
-        interested: totalInterested,
-      },
-      campaignComparison: filtered,
-    } as FastAnalytics;
-  }, [fastData, activeCycle, parseCycle]);
+  // Build query string for cycle + refresh
+  const buildQuery = useCallback((refresh = false) => {
+    const params = new URLSearchParams();
+    if (activeCycle !== null) params.set('cycle', String(activeCycle));
+    if (refresh) params.set('refresh', 'true');
+    const qs = params.toString();
+    return qs ? `?${qs}` : '';
+  }, [activeCycle]);
 
-  // Filter Phase 2 data by cycle
-  const filteredReport = useMemo(() => {
-    if (!report || activeCycle === null) return report;
-    const filteredReplies = report.replies.filter(r => r.cycleNumber === activeCycle);
-    // Recompute sentiment/intent breakdown
-    const sentimentBreakdown: Record<ReplySentiment, number> = { positive: 0, negative: 0, neutral: 0 };
-    const intentBreakdown: Record<ReplyIntent, number> = {
-      'interested': 0, 'not-interested': 0, 'needs-info': 0,
-      'referral': 0, 'out-of-office': 0, 'unsubscribe': 0,
-    };
-    for (const r of filteredReplies) {
-      sentimentBreakdown[r.sentiment]++;
-      intentBreakdown[r.intent]++;
-    }
-    // Recompute themes, signals, objections
-    const themeCount = new Map<string, number>();
-    const objCount = new Map<string, number>();
-    const sigCount = new Map<string, number>();
-    for (const r of filteredReplies) {
-      for (const t of r.themes) themeCount.set(t, (themeCount.get(t) || 0) + 1);
-      for (const o of r.objections) objCount.set(o, (objCount.get(o) || 0) + 1);
-      for (const s of r.buyingSignals) sigCount.set(s, (sigCount.get(s) || 0) + 1);
-    }
-    // Recompute demographics
-    const buildDist = (items: string[], interestedReplies: AnalyzedReply[]): DemographicDistribution[] => {
-      const counts = new Map<string, number>();
-      for (const item of items) counts.set(item, (counts.get(item) || 0) + 1);
-      return Array.from(counts.entries())
-        .map(([label, count]) => ({
-          label,
-          count,
-          percentage: items.length > 0 ? parseFloat(((count / items.length) * 100).toFixed(1)) : 0,
-          interestedCount: interestedReplies.filter(r => r.company === label || r.industry === label || r.seniority === label).filter(r => r.isInterested).length,
-        }))
-        .sort((a, b) => b.count - a.count);
-    };
-    const industries = filteredReplies.map(r => r.industry);
-    const seniorities = filteredReplies.map(r => r.seniority);
-    const companies = filteredReplies.map(r => r.company);
-    // Pipeline companies from filtered replies
-    const pipeMap = new Map<string, number>();
-    for (const r of filteredReplies) {
-      if (r.isInterested) pipeMap.set(r.company, (pipeMap.get(r.company) || 0) + 1);
-    }
-    const pipelineCompanies: DemographicDistribution[] = Array.from(pipeMap.entries())
-      .map(([label, interestedCount]) => ({
-        label,
-        count: interestedCount,
-        percentage: filteredReplies.length > 0 ? parseFloat(((interestedCount / filteredReplies.length) * 100).toFixed(1)) : 0,
-        interestedCount,
-      }))
-      .sort((a, b) => b.interestedCount - a.interestedCount);
-
-    return {
-      ...report,
-      totalAnalyzed: filteredReplies.length,
-      sentimentBreakdown,
-      intentBreakdown,
-      industryDistribution: buildDist(industries, filteredReplies),
-      seniorityDistribution: buildDist(seniorities, filteredReplies),
-      topCompanies: buildDist(companies, filteredReplies).slice(0, 15),
-      pipelineCompanies,
-      topThemes: Array.from(themeCount.entries()).map(([theme, count]) => ({ theme, count })).sort((a, b) => b.count - a.count).slice(0, 10),
-      topObjections: Array.from(objCount.entries()).map(([objection, count]) => ({ objection, count })).sort((a, b) => b.count - a.count).slice(0, 10),
-      topBuyingSignals: Array.from(sigCount.entries()).map(([signal, count]) => ({ signal, count })).sort((a, b) => b.count - a.count).slice(0, 10),
-      replies: filteredReplies,
-      industries: [...new Set(industries)],
-    } as AnalyticsReport;
-  }, [report, activeCycle]);
-
-  // Phase 1: Fast fetch
+  // Phase 1: Fast fetch (re-fetches on cycle change)
   useEffect(() => {
     const fetchFast = async () => {
+      setPhase1Loading(true);
       try {
+        const query = activeCycle !== null ? `?cycle=${activeCycle}` : '';
         const [fastRes, senderRes] = await Promise.all([
-          fetch('/api/analytics/fast'),
+          fetch(`/api/analytics/fast${query}`),
           fetch('/api/analytics/senders'),
         ]);
         if (fastRes.ok) {
@@ -1144,13 +1046,15 @@ export default function AnalyticsPage() {
       }
     };
     fetchFast();
-  }, []);
+  }, [activeCycle]);
 
-  // Phase 2: Deep analysis (starts immediately, renders when ready)
+  // Phase 2: Deep analysis (re-fetches on cycle change)
   useEffect(() => {
     const fetchDeep = async () => {
+      setPhase2Loading(true);
       try {
-        const response = await fetch('/api/analytics');
+        const query = activeCycle !== null ? `?cycle=${activeCycle}` : '';
+        const response = await fetch(`/api/analytics${query}`);
         if (!response.ok) throw new Error('Failed to fetch deep analytics');
         const { data } = await response.json();
         setReport(data);
@@ -1161,13 +1065,15 @@ export default function AnalyticsPage() {
       }
     };
     fetchDeep();
-  }, []);
+  }, [activeCycle]);
 
-  // Phase 3: Copy analysis (starts immediately, renders when ready)
+  // Phase 3: Copy analysis (re-fetches on cycle change)
   useEffect(() => {
     const fetchCopy = async () => {
+      setPhase3Loading(true);
       try {
-        const response = await fetch('/api/analytics/copy');
+        const query = activeCycle !== null ? `?cycle=${activeCycle}` : '';
+        const response = await fetch(`/api/analytics/copy${query}`);
         if (response.ok) {
           const { data } = await response.json();
           setCopyData(data);
@@ -1179,7 +1085,31 @@ export default function AnalyticsPage() {
       }
     };
     fetchCopy();
-  }, []);
+  }, [activeCycle]);
+
+  // Refresh handler — clears caches and re-fetches
+  const handleRefresh = useCallback(async () => {
+    const query = buildQuery(true);
+    setPhase1Loading(true);
+    setPhase2Loading(true);
+    setPhase3Loading(true);
+    try {
+      const [fastRes, deepRes, copyRes] = await Promise.all([
+        fetch(`/api/analytics/fast${query}`),
+        fetch(`/api/analytics${query}`),
+        fetch(`/api/analytics/copy${query}`),
+      ]);
+      if (fastRes.ok) { const { data } = await fastRes.json(); setFastData(data); }
+      if (deepRes.ok) { const { data } = await deepRes.json(); setReport(data); }
+      if (copyRes.ok) { const { data } = await copyRes.json(); setCopyData(data); }
+    } catch {
+      // individual errors handled by display
+    } finally {
+      setPhase1Loading(false);
+      setPhase2Loading(false);
+      setPhase3Loading(false);
+    }
+  }, [buildQuery]);
 
   const handleExportPDF = useCallback(async () => {
     if (!contentRef.current || exporting) return;
@@ -1242,6 +1172,11 @@ export default function AnalyticsPage() {
     <PageContainer className="space-y-8 pb-12">
       {/* Export Buttons */}
       <div className="flex items-center justify-end gap-3 hide-on-export">
+        <button onClick={handleRefresh} disabled={phase1Loading && phase2Loading}
+          className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-lg border bg-white hover:bg-gray-50 text-gray-700 transition-colors disabled:opacity-50">
+          {(phase1Loading || phase2Loading) ? <Loader2 className="h-4 w-4 animate-spin" /> : <Zap className="h-4 w-4" />}
+          Refresh Data
+        </button>
         <button onClick={handleExportCSV} disabled={!filteredReport}
           className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-lg border bg-white hover:bg-gray-50 text-gray-700 transition-colors disabled:opacity-50">
           <FileSpreadsheet className="h-4 w-4" /> Download CSV

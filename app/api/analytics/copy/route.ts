@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { getCampaigns, getCampaignStats, getCampaignSequenceSteps, switchWorkspace } from '@/lib/api/emailbison';
+import { getAllCampaigns, getCampaignStats, getCampaignSequenceSteps, switchWorkspace } from '@/lib/api/emailbison';
 import type {
   Campaign,
   CopyAnalysis,
@@ -547,23 +547,35 @@ function buildCopyAnalysis(campaignDetails: CampaignWithSubject[]): CopyAnalysis
 
 // ── GET handler ──────────────────────────────────────────────────────
 
-export async function GET() {
+export async function GET(request: Request) {
   try {
+    const url = new URL(request.url);
+    const cycleParam = url.searchParams.get('cycle');
+
     await switchWorkspace(SELERY_WORKSPACE_ID).catch(() => {});
 
-    const { data: campaigns } = await getCampaigns();
-    const activeCampaigns = campaigns.filter(c =>
+    const campaigns = await getAllCampaigns();
+
+    // Apply cycle filter if requested
+    const cycleFilter = cycleParam ? parseInt(cycleParam, 10) : null;
+    const cycleRegex = cycleFilter !== null ? new RegExp(`^Cycle\\s+${cycleFilter}\\b`, 'i') : null;
+
+    const filteredCampaigns = cycleRegex
+      ? campaigns.filter(c => cycleRegex.test(c.name))
+      : campaigns;
+
+    const activeCampaigns = filteredCampaigns.filter(c =>
       c.emails_sent > 0 &&
       ['active', 'completed', 'launching'].includes(c.status.toLowerCase())
     );
 
-    // Get stats for subject lines (up to 15 campaigns)
+    // Get stats for subject lines
     const now = new Date();
     const startDate = '2025-01-01';
     const endDate = now.toISOString().split('T')[0];
 
     const campaignDetailsRaw = await Promise.all(
-      activeCampaigns.slice(0, 15).map(async (campaign) => {
+      activeCampaigns.slice(0, 20).map(async (campaign) => {
         try {
           const { data } = await getCampaignStats(campaign.id, startDate, endDate);
           const subjectLine = data.sequence_step_stats?.[0]?.email_subject || '';
@@ -594,7 +606,7 @@ export async function GET() {
       leadsContacted?: number; interested?: number; replies?: number; sent?: number;
     }> = [];
 
-    for (const detail of campaignDetails.slice(0, 9)) {
+    for (const detail of campaignDetails.slice(0, 15)) {
       try {
         const seqResponse = await getCampaignSequenceSteps(detail.campaign.id);
         if (seqResponse.data?.[0]?.body) {

@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
-import { getCampaigns, getCampaignStats, switchWorkspace } from '@/lib/api/emailbison';
+import { getAllCampaigns, getCampaignStats, switchWorkspace } from '@/lib/api/emailbison';
+import { getCache, setCache, clearCache } from '@/lib/cache';
 import type {
   FastAnalytics,
   CampaignComparisonItem,
@@ -8,16 +9,51 @@ import type {
 
 const SELERY_WORKSPACE_ID = 22;
 
-export async function GET() {
+export async function GET(request: Request) {
   try {
+    const url = new URL(request.url);
+    const cycleParam = url.searchParams.get('cycle');
+    const refresh = url.searchParams.get('refresh') === 'true';
+
+    const cacheKey = `fast-analytics-cycle-${cycleParam || 'all'}`;
+    if (!refresh) {
+      const cached = await getCache<FastAnalytics>(cacheKey);
+      if (cached) {
+        return NextResponse.json({ data: cached }, {
+          headers: { 'Cache-Control': 'public, s-maxage=300, stale-while-revalidate=120' },
+        });
+      }
+    } else {
+      await clearCache('fast-analytics');
+    }
+
     // Switch workspace
     await switchWorkspace(SELERY_WORKSPACE_ID).catch(() => {});
 
-    // Fetch campaign list
-    const { data: campaigns } = await getCampaigns();
-    // Include all campaigns with leads loaded (not just those with sends)
-    const activeCampaigns = campaigns.filter(c => c.emails_sent > 0);
+    // Fetch ALL campaigns (paginated)
+    const campaigns = await getAllCampaigns();
+
+    // Compute available cycles from the FULL unfiltered list
     const allCampaignsWithLeads = campaigns.filter(c => c.total_leads > 0);
+    const availableCycles = [...new Set(
+      allCampaignsWithLeads
+        .map(c => {
+          const match = c.name.match(/^Cycle\s+(\d+)/i);
+          return match ? parseInt(match[1], 10) : null;
+        })
+        .filter((n): n is number => n !== null)
+    )].sort((a, b) => a - b);
+
+    // Filter by cycle if requested
+    const cycleFilter = cycleParam ? parseInt(cycleParam, 10) : null;
+    const cycleRegex = cycleFilter !== null ? new RegExp(`^Cycle\\s+${cycleFilter}\\b`, 'i') : null;
+
+    const filteredCampaigns = cycleRegex
+      ? campaigns.filter(c => cycleRegex.test(c.name))
+      : campaigns;
+
+    const activeCampaigns = filteredCampaigns.filter(c => c.emails_sent > 0);
+    const filteredWithLeads = filteredCampaigns.filter(c => c.total_leads > 0);
 
     // Fetch stats for all active campaigns in parallel
     const now = new Date();
@@ -46,7 +82,7 @@ export async function GET() {
     const totalBounced = activeCampaigns.reduce((s, c) => s + c.bounced, 0);
 
     // Campaign comparison — include all campaigns with leads loaded
-    const campaignComparison: CampaignComparisonItem[] = allCampaignsWithLeads
+    const campaignComparison: CampaignComparisonItem[] = filteredWithLeads
       .map(c => ({
         id: c.id,
         name: c.name,
@@ -69,7 +105,7 @@ export async function GET() {
       }))
       .sort((a, b) => b.interestRate - a.interestRate);
 
-    // Sequence step performance — aggregate across campaigns
+    // Sequence step performance — aggregate across filtered campaigns
     const stepAgg = new Map<number, {
       subjects: string[];
       sent: number;
@@ -122,7 +158,7 @@ export async function GET() {
     const report: FastAnalytics = {
       workspaceName: 'Selery',
       heroMetrics: {
-        totalCampaigns: allCampaignsWithLeads.length,
+        totalCampaigns: filteredWithLeads.length,
         activeCampaigns: activeCampaigns.length,
         totalLeads,
         leadsContacted,
@@ -147,15 +183,11 @@ export async function GET() {
       },
       campaignComparison,
       sequenceStepPerformance,
-      availableCycles: [...new Set(
-        allCampaignsWithLeads
-          .map(c => {
-            const match = c.name.match(/^Cycle\s+(\d+)/i);
-            return match ? parseInt(match[1], 10) : null;
-          })
-          .filter((n): n is number => n !== null)
-      )].sort((a, b) => a - b),
+      availableCycles,
     };
+
+    // Cache for 10 minutes
+    await setCache(cacheKey, report, 600);
 
     return NextResponse.json({ data: report }, {
       headers: { 'Cache-Control': 'public, s-maxage=300, stale-while-revalidate=120' },

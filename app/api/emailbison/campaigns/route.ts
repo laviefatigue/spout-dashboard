@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getCampaigns } from '@/lib/api/emailbison';
+import { getAllCampaigns } from '@/lib/api/emailbison';
 
 export async function GET(request: NextRequest) {
   try {
@@ -7,8 +7,8 @@ export async function GET(request: NextRequest) {
     const search = searchParams.get('search') || undefined;
     const status = searchParams.get('status') || undefined;
 
-    const response = await getCampaigns({ search, status });
-    return NextResponse.json(response);
+    const data = await getAllCampaigns({ search, status });
+    return NextResponse.json({ data });
   } catch (error) {
     console.error('Campaigns fetch error:', error);
     return NextResponse.json(
