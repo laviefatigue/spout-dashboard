@@ -112,51 +112,137 @@ export async function GET(request: Request) {
     const url = new URL(request.url);
     const cycleParam = url.searchParams.get('cycle');
 
-    // If cycle specified, aggregate from per-campaign sender data
+    // If cycle specified, derive cycle-scoped sender stats
+    // The per-campaign sender endpoint returns GLOBAL stats, not campaign-scoped.
+    // So we: 1) get global senders for provider/domain detection,
+    //        2) get which senders are in each cycle campaign,
+    //        3) allocate each campaign's actual stats proportionally by provider.
     if (cycleParam) {
       const cycleFilter = parseInt(cycleParam, 10);
       const cycleRegex = new RegExp(`^Cycle\\s+${cycleFilter}\\b`, 'i');
 
-      const campaigns = await getAllCampaigns();
-      const cycleCampaigns = campaigns.filter(c => cycleRegex.test(c.name) && c.emails_sent > 0);
+      const [campaigns, globalSenders] = await Promise.all([
+        getAllCampaigns(),
+        getAllSenderEmails(),
+      ]);
+      const cycleCampaigns = campaigns.filter(c => cycleRegex.test(c.name));
 
-      // Fetch per-campaign senders in parallel
+      // Build global lookup: email → provider & domain
+      const senderInfoMap = new Map<string, { provider: EmailProvider; domain: string; status: string }>();
+      for (const s of globalSenders) {
+        senderInfoMap.set(s.email, {
+          provider: detectProvider(s),
+          domain: s.email.split('@')[1] || 'unknown',
+          status: s.status,
+        });
+      }
+
+      // Fetch per-campaign sender EMAIL LISTS (just need to know which senders are assigned)
       const campaignSenderResults = await Promise.all(
         cycleCampaigns.map(async (c) => {
           try {
-            const { data } = await getCampaignSenderEmails(c.id);
-            return data || [];
+            const senders = await getCampaignSenderEmails(c.id);
+            return { campaign: c, senderEmails: senders.map(s => s.email) };
           } catch {
-            return [];
+            return { campaign: c, senderEmails: [] as string[] };
           }
         })
       );
 
-      // Merge senders across campaigns — same email may appear in multiple campaigns
-      // Aggregate their stats (each campaign returns scoped stats for that sender)
-      const senderAgg = new Map<string, SenderEmail>();
-      for (const campaignSenders of campaignSenderResults) {
-        for (const s of campaignSenders) {
-          const existing = senderAgg.get(s.email);
-          if (existing) {
-            existing.emails_sent_count += s.emails_sent_count;
-            existing.total_leads_contacted_count += s.total_leads_contacted_count;
-            existing.unique_replied_count += s.unique_replied_count;
-            existing.bounced_count += s.bounced_count;
-            existing.interested_leads_count += s.interested_leads_count;
-            existing.total_replied_count += s.total_replied_count;
-            existing.total_opened_count += s.total_opened_count;
-            existing.unique_opened_count += s.unique_opened_count;
-            existing.unsubscribed_count += s.unsubscribed_count;
-          } else {
-            // Clone so we don't mutate the original
-            senderAgg.set(s.email, { ...s });
-          }
+      // For each campaign, figure out provider mix and allocate campaign stats proportionally
+      const providerAgg = new Map<EmailProvider, Omit<ProviderStats, 'replyRate' | 'bounceRate' | 'interestRate'>>();
+      const domainAgg = new Map<string, Omit<DomainStats, 'replyRate' | 'bounceRate' | 'interestRate'> & { provider: EmailProvider }>();
+      const cycleSenderEmails = new Set<string>();
+
+      for (const { campaign, senderEmails } of campaignSenderResults) {
+        if (senderEmails.length === 0) continue;
+
+        // Count senders per provider for this campaign
+        const providerCounts = new Map<EmailProvider, number>();
+        const domainCounts = new Map<string, { count: number; provider: EmailProvider }>();
+        for (const email of senderEmails) {
+          cycleSenderEmails.add(email);
+          const info = senderInfoMap.get(email) || { provider: 'Other' as EmailProvider, domain: email.split('@')[1] || 'unknown', status: '' };
+          providerCounts.set(info.provider, (providerCounts.get(info.provider) || 0) + 1);
+          const domEntry = domainCounts.get(info.domain) || { count: 0, provider: info.provider };
+          domEntry.count++;
+          domainCounts.set(info.domain, domEntry);
+        }
+
+        const totalSenders = senderEmails.length;
+
+        // Allocate campaign stats proportionally by provider
+        for (const [provider, count] of providerCounts) {
+          const share = count / totalSenders;
+          const prov = providerAgg.get(provider) || {
+            provider, accountCount: 0, emailsSent: 0, contacted: 0, replied: 0, bounced: 0, interested: 0,
+          };
+          prov.emailsSent += Math.round(campaign.emails_sent * share);
+          prov.contacted += Math.round(campaign.total_leads_contacted * share);
+          prov.replied += Math.round(campaign.unique_replies * share);
+          prov.bounced += Math.round(campaign.bounced * share);
+          prov.interested += Math.round(campaign.interested * share);
+          providerAgg.set(provider, prov);
+        }
+
+        // Allocate campaign stats proportionally by domain
+        for (const [domain, { count, provider }] of domainCounts) {
+          const share = count / totalSenders;
+          const dom = domainAgg.get(domain) || {
+            domain, provider, accountCount: 0, emailsSent: 0, contacted: 0, replied: 0, bounced: 0, interested: 0,
+          };
+          dom.emailsSent += Math.round(campaign.emails_sent * share);
+          dom.contacted += Math.round(campaign.total_leads_contacted * share);
+          dom.replied += Math.round(campaign.unique_replies * share);
+          dom.bounced += Math.round(campaign.bounced * share);
+          dom.interested += Math.round(campaign.interested * share);
+          domainAgg.set(domain, dom);
         }
       }
 
-      const mergedSenders = Array.from(senderAgg.values());
-      const result = buildAnalytics(mergedSenders);
+      // Set accurate account counts from the unique sender emails in this cycle
+      for (const email of cycleSenderEmails) {
+        const info = senderInfoMap.get(email);
+        if (!info) continue;
+        const prov = providerAgg.get(info.provider);
+        if (prov) prov.accountCount++;
+        const dom = domainAgg.get(info.domain);
+        if (dom) dom.accountCount++;
+      }
+
+      let connectedCount = 0;
+      for (const email of cycleSenderEmails) {
+        const info = senderInfoMap.get(email);
+        if (info?.status?.toLowerCase() === 'connected') connectedCount++;
+      }
+
+      const byProvider: ProviderStats[] = Array.from(providerAgg.values())
+        .map(p => ({
+          ...p,
+          replyRate: rate(p.replied, p.contacted),
+          bounceRate: rate(p.bounced, p.emailsSent),
+          interestRate: rate(p.interested, p.contacted),
+        }))
+        .sort((a, b) => b.emailsSent - a.emailsSent);
+
+      const byDomain: DomainStats[] = Array.from(domainAgg.values())
+        .map(d => ({
+          ...d,
+          replyRate: rate(d.replied, d.contacted),
+          bounceRate: rate(d.bounced, d.emailsSent),
+          interestRate: rate(d.interested, d.contacted),
+        }))
+        .sort((a, b) => b.emailsSent - a.emailsSent);
+
+      const result: SenderAnalytics = {
+        totalAccounts: cycleSenderEmails.size,
+        connectedAccounts: connectedCount,
+        byProvider,
+        byDomain,
+        topSenders: [], // Top individual senders not available at cycle scope
+      };
+
+      console.log(`[Analytics/Senders] Cycle ${cycleFilter}: ${cycleCampaigns.length} campaigns, ${cycleSenderEmails.size} unique senders, providers: ${byProvider.map(p => `${p.provider}(${p.accountCount})`).join(', ')}`);
 
       return NextResponse.json({ data: result }, {
         headers: { 'Cache-Control': 'public, s-maxage=600, stale-while-revalidate=300' },
@@ -165,6 +251,7 @@ export async function GET(request: Request) {
 
     // No cycle filter — use global sender data (original behavior)
     const senders = await getAllSenderEmails();
+    console.log(`[Analytics/Senders] Overall: ${senders.length} total senders, types: ${[...new Set(senders.map(s => s.type))].join(', ')}`);
     const result = buildAnalytics(senders);
 
     return NextResponse.json({ data: result }, {

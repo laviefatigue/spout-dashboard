@@ -97,10 +97,36 @@ export async function getCampaignLeads(campaignId: number, filters?: {
   );
 }
 
-export async function getCampaignSenderEmails(campaignId: number) {
-  return fetchApi<{ data: import('@/lib/types/emailbison').SenderEmail[] }>(
-    `/api/campaigns/${campaignId}/sender-emails`
+export async function getCampaignSenderEmails(campaignId: number): Promise<import('@/lib/types/emailbison').SenderEmail[]> {
+  type Page = {
+    data: import('@/lib/types/emailbison').SenderEmail[];
+    meta?: { last_page: number; current_page: number };
+  };
+
+  const page1 = await fetchApi<Page>(
+    `/api/campaigns/${campaignId}/sender-emails?page=1&per_page=100`
   );
+  const all = [...(page1.data || [])];
+  const lastPage = page1.meta?.last_page || 1;
+
+  if (lastPage > 1) {
+    const pages = Array.from({ length: lastPage - 1 }, (_, i) => i + 2);
+    const results = await Promise.all(
+      pages.map(async (p) => {
+        try {
+          const res = await fetchApi<Page>(
+            `/api/campaigns/${campaignId}/sender-emails?page=${p}&per_page=100`
+          );
+          return res.data || [];
+        } catch {
+          return [];
+        }
+      })
+    );
+    for (const pageData of results) all.push(...pageData);
+  }
+
+  return all;
 }
 
 // Campaigns — paginated fetch all (follows getAllSenderEmails pattern)

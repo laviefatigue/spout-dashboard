@@ -33,8 +33,7 @@ export async function GET(request: Request) {
     // Fetch ALL campaigns (paginated)
     const campaigns = await getAllCampaigns();
 
-    // Compute available cycles from the FULL unfiltered list (all campaigns, not just those with leads)
-    const allCampaignsWithLeads = campaigns.filter(c => c.total_leads > 0);
+    // Compute available cycles from the FULL unfiltered list
     const availableCycles = [...new Set(
       campaigns
         .map(c => {
@@ -53,7 +52,6 @@ export async function GET(request: Request) {
       : campaigns;
 
     const activeCampaigns = filteredCampaigns.filter(c => c.emails_sent > 0);
-    const filteredWithLeads = filteredCampaigns.filter(c => c.total_leads > 0);
 
     // Fetch stats for all active campaigns in parallel
     const now = new Date();
@@ -81,8 +79,8 @@ export async function GET(request: Request) {
     const totalInterested = activeCampaigns.reduce((s, c) => s + c.interested, 0);
     const totalBounced = activeCampaigns.reduce((s, c) => s + c.bounced, 0);
 
-    // Campaign comparison — include all campaigns with leads loaded
-    const campaignComparison: CampaignComparisonItem[] = filteredWithLeads
+    // Campaign comparison — include ALL campaigns (even those with 0 leads/sends)
+    const campaignComparison: CampaignComparisonItem[] = filteredCampaigns
       .map(c => ({
         id: c.id,
         name: c.name,
@@ -158,7 +156,7 @@ export async function GET(request: Request) {
     const report: FastAnalytics = {
       workspaceName: 'Selery',
       heroMetrics: {
-        totalCampaigns: filteredWithLeads.length,
+        totalCampaigns: filteredCampaigns.length,
         activeCampaigns: activeCampaigns.length,
         totalLeads,
         leadsContacted,

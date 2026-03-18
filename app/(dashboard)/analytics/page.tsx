@@ -530,25 +530,25 @@ function SenderPerformance({ data }: { data: SenderAnalytics }) {
       {/* Provider Summary */}
       {data.byProvider.length > 0 && (
         <div className="p-4 border-b">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+          <div className={`grid grid-cols-1 gap-3 ${data.byProvider.length >= 3 ? 'md:grid-cols-3' : 'md:grid-cols-2'}`}>
             {data.byProvider.map((p) => (
-              <div key={p.provider} className="p-3 rounded-lg bg-muted/50 border">
-                <div className="flex items-center gap-2 mb-2">
-                  <Globe className="h-4 w-4 text-muted-foreground" />
-                  <span className="font-medium text-sm">{p.provider}</span>
-                  <span className="text-xs text-muted-foreground">({p.accountCount} accounts)</span>
+              <div key={p.provider} className="p-4 rounded-lg bg-muted/50 border">
+                <div className="flex items-center gap-2 mb-3">
+                  <Globe className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+                  <span className="font-medium text-sm truncate">{p.provider}</span>
+                  <span className="text-xs text-muted-foreground whitespace-nowrap">({p.accountCount})</span>
                 </div>
-                <div className="grid grid-cols-3 gap-2 text-center">
-                  <div>
-                    <p className="text-lg font-bold">{p.replyRate}%</p>
+                <div className="grid grid-cols-3 gap-4 text-center">
+                  <div className="min-w-0">
+                    <p className="text-base font-bold">{p.replyRate}%</p>
                     <p className="text-xs text-muted-foreground">Reply</p>
                   </div>
-                  <div>
-                    <p className="text-lg font-bold">{p.bounceRate}%</p>
+                  <div className="min-w-0">
+                    <p className="text-base font-bold">{p.bounceRate}%</p>
                     <p className="text-xs text-muted-foreground">Bounce</p>
                   </div>
-                  <div>
-                    <p className="text-lg font-bold text-selery-cyan">{p.replied.toLocaleString()}</p>
+                  <div className="min-w-0">
+                    <p className="text-base font-bold text-selery-cyan">{p.replied.toLocaleString()}</p>
                     <p className="text-xs text-muted-foreground">Replied</p>
                   </div>
                 </div>
